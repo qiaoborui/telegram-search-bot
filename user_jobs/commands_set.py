@@ -1,15 +1,18 @@
-import telegram
+from telegram.ext import CallbackContext
+from telegram import BotCommand
 from utils import get_text_func
 
 _ = get_text_func()
 
-def set_bot_commands(context: telegram.ext.CallbackContext):
+def set_bot_commands(context: CallbackContext):
+    """Set bot commands"""
     commands = [
-        ('help', _('get search help')),
-        ('chat_id', _('get current chat id (group or user)')),
-        ('start', _('start bot in current group ( userbot mode need `start <group_id>`)')),
-        ('stop', _('stop bot in current group (userbot mode need `stop <group_id>`)')),
-        ('delete', _('delete saved messages if stopped  (userbot mode need `stop <group_id>`)'))
+        BotCommand('start', _('Start bot')),
+        BotCommand('stop', _('Stop bot')),
+        BotCommand('delete', _('Delete group data')),
+        BotCommand('chatid', _('Get chat id')),
+        BotCommand('help', _('Help')),
+        BotCommand('search', _('Search messages')),
+        BotCommand('nlsearch', _('Natural language search')),
     ]
-
     context.bot.set_my_commands(commands)

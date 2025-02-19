@@ -93,3 +93,57 @@ msgstr "Attention! 不要点击任何按钮，否则会发送空消息。"
 
 msgid "Attention! This is just a prompt message, do not click on it, otherwise a /help message will be sent"
 msgstr "Attention! 这只是一条提示消息，不要点击它，否则会发送 /help 消息"
+
+msgid "search messages with keywords"
+msgstr "使用关键词搜索消息"
+
+msgid "You are not a member of any groups where the bot is enabled."
+msgstr "你不是任何已启用机器人的群组的成员。"
+
+msgid "No enabled groups found"
+msgstr "没有已启用的群组"
+
+msgid "Please use /start to enable the bot in your group first"
+msgstr "请先在群组中使用 /start 启用机器人"
+
+msgid "No searchable groups"
+msgstr "没有可搜索的群组"
+
+msgid "Please ensure: 1. Use /start to enable the bot 2. Grant admin rights 3. Disable privacy mode"
+msgstr "请确保：1. 使用 /start 启用机器人 2. 授予机器人管理员权限 3. 确保机器人的隐私模式已关闭"
+
+msgid "Please ensure the bot is properly enabled and has sufficient permissions"
+msgstr "请先确保机器人在群组中正确启用并具有足够权限"
+
+msgid "Total: {}. Page {} of {}"
+msgstr "共 {} 条结果，第 {} 页，共 {} 页"
+
+msgid "🔍 *Search Results* (Total: {})\n\n"
+msgstr "🔍 *搜索结果* (共 {} 条)\n\n"
+
+msgid "👤 *{}* @{}\n"
+msgstr "👤 *{}* @{}\n"
+
+msgid "📝 {}\n"
+msgstr "📝 {}\n"
+
+msgid "🔗 [View Original Message]({})\n\n"
+msgstr "🔗 [查看原消息]({})\n\n"
+
+msgid "No enabled groups found, please use /start to enable the bot first"
+msgstr "没有找到已启用的群组，请先使用 /start 启用机器人"
+
+msgid "Group {} requires bot admin privileges"
+msgstr "群组 {} 需要授予机器人管理员权限"
+
+msgid "Please ensure:\n1. Use /start to enable the bot\n2. Grant admin rights\n3. Disable privacy mode"
+msgstr "请确保：\n1. 使用 /start 启用机器人\n2. 授予机器人管理员权限\n3. 确保机器人的隐私模式已关闭"
+
+msgid "No searchable groups, please ensure the bot is properly enabled"
+msgstr "没有可搜索的群组，请确保机器人已正确启用"
+
+msgid "Already at the last page"
+msgstr "已经是最后一页了"
+
+msgid "Error processing page request, please try again"
+msgstr "处理翻页请求时发生错误，请重试"

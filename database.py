@@ -38,6 +38,16 @@ class User(Base):
     username = Column(TEXT)
 
 
+class UserAlias(Base):
+    __tablename__ = 'user_alias'
+
+    id = Column(INTEGER, primary_key=True)
+    user_id = Column(INTEGER)  # The actual user ID this alias refers to
+    alias = Column(TEXT)  # The alias name
+    created_by = Column(INTEGER)  # The user ID who created this alias
+    created_at = Column(DATETIME)  # When this alias was created
+
+
 class Chat(Base):
     __tablename__ = 'chat'
 

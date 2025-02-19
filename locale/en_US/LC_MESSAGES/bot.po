@@ -93,3 +93,87 @@ msgstr "Attention! Do not click any buttons, otherwise an empty message will be 
 
 msgid "Attention! This is just a prompt message, do not click on it, otherwise a /help message will be sent"
 msgstr "Attention! This is just a prompt message, do not click on it, otherwise a /help message will be sent"
+
+msgid "search messages with keywords"
+msgstr "search messages with keywords"
+
+msgid "You are not a member of any groups where the bot is enabled."
+msgstr "You are not a member of any groups where the bot is enabled."
+
+msgid "No enabled groups found"
+msgstr "No enabled groups found"
+
+msgid "Please use /start to enable the bot in your group first"
+msgstr "Please use /start to enable the bot in your group first"
+
+msgid "No searchable groups"
+msgstr "No searchable groups"
+
+msgid "Please ensure: 1. Use /start to enable the bot 2. Grant admin rights 3. Disable privacy mode"
+msgstr "Please ensure: 1. Use /start to enable the bot 2. Grant admin rights 3. Disable privacy mode"
+
+msgid "Please ensure the bot is properly enabled and has sufficient permissions"
+msgstr "Please ensure the bot is properly enabled and has sufficient permissions"
+
+msgid "Total: {}. Page {} of {}"
+msgstr "Total: {}. Page {} of {}"
+
+msgid "🔍 *Search Results* (Total: {})\n\n"
+msgstr "🔍 *Search Results* (Total: {})\n\n"
+
+msgid "👤 *{}* @{}\n"
+msgstr "👤 *{}* @{}\n"
+
+msgid "📝 {}\n"
+msgstr "📝 {}\n"
+
+msgid "🔗 [View Original Message]({})\n\n"
+msgstr "🔗 [View Original Message]({})\n\n"
+
+msgid "No enabled groups found, please use /start to enable the bot first"
+msgstr "No enabled groups found, please use /start to enable the bot first"
+
+msgid "Group {} requires bot admin privileges"
+msgstr "Group {} requires bot admin privileges"
+
+msgid "Please ensure:\n1. Use /start to enable the bot\n2. Grant admin rights\n3. Disable privacy mode"
+msgstr "Please ensure:\n1. Use /start to enable the bot\n2. Grant admin rights\n3. Disable privacy mode"
+
+msgid "No searchable groups, please ensure the bot is properly enabled"
+msgstr "No searchable groups, please ensure the bot is properly enabled"
+
+msgid "Already at the last page"
+msgstr "Already at the last page"
+
+msgid "Error processing page request, please try again"
+msgstr "Error processing page request, please try again"
+
+msgid "Usage: /addalias <alias> <username/fullname>"
+msgstr "Usage: /addalias <alias> <username/fullname>"
+
+msgid "This alias is already in use!"
+msgstr "This alias is already in use!"
+
+msgid "Could not find a user matching that name!"
+msgstr "Could not find a user matching that name!"
+
+msgid "Successfully added alias '{alias}' for user {user}"
+msgstr "Successfully added alias '{alias}' for user {user}"
+
+msgid "An error occurred while adding the alias."
+msgstr "An error occurred while adding the alias."
+
+msgid "You haven't created any aliases yet."
+msgstr "You haven't created any aliases yet."
+
+msgid "Your aliases:\n\n"
+msgstr "Your aliases:\n\n"
+
+msgid "Usage: /removealias <alias>"
+msgstr "Usage: /removealias <alias>"
+
+msgid "Alias not found or you don't have permission to remove it."
+msgstr "Alias not found or you don't have permission to remove it."
+
+msgid "Successfully removed alias '{alias}'"
+msgstr "Successfully removed alias '{alias}'"
