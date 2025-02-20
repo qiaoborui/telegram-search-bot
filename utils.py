@@ -11,6 +11,9 @@ CONFIG_FILE = './config/.config.json'
 USERBOT_CHAT_MEMBERS_FILE = '.userbot_chat_members'
 USERBOT_ADMIN_FILE = '.userbot_admin'
 
+# Default timeout in seconds for auto-delete messages
+DEFAULT_DELETE_TIMEOUT = int(os.getenv('DELETE_TIMEOUT', '60'))
+
 def get_text_func():
     # Init i18n func
     gettext.bindtextdomain('bot', 'locale')
@@ -18,21 +21,30 @@ def get_text_func():
     _ = gettext.gettext
     return _
 
-def delay_delete(bot, chat_id, message_id):
-    time.sleep(60)
-    bot.delete_message(chat_id=chat_id, message_id=message_id)
+def delay_delete(bot, chat_id, message_id, timeout=None):
+    if timeout is None:
+        timeout = DEFAULT_DELETE_TIMEOUT
+    time.sleep(timeout)
+    try:
+        bot.delete_message(chat_id=chat_id, message_id=message_id)
+    except:
+        pass  # Ignore any errors when trying to delete message
 
 
-def auto_delete(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kw):
-        bot = args[1].bot
-        sent_message = fn(*args, **kw)
-        if sent_message:
-            Thread(target=delay_delete, args=[bot, sent_message.chat_id, sent_message.message_id]).start()
-        return sent_message
-
-    return wrapper
+def auto_delete(fn=None, *, timeout=None):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kw):
+            bot = args[1].bot
+            sent_message = func(*args, **kw)
+            if sent_message:
+                Thread(target=delay_delete, args=[bot, sent_message.chat_id, sent_message.message_id, timeout]).start()
+            return sent_message
+        return wrapper
+    
+    if fn is None:
+        return decorator
+    return decorator(fn)
 
 
 def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):

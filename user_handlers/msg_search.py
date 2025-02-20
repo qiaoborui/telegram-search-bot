@@ -10,7 +10,7 @@ from database import User, Message, Chat, DBSession
 from sqlalchemy import and_, or_
 import pytz
 
-from utils import get_filter_chats, is_userbot_mode, get_text_func
+from utils import get_filter_chats, is_userbot_mode, get_text_func, auto_delete
 
 _ = get_text_func()
 
@@ -287,6 +287,7 @@ def format_search_results(messages, page, total_count):
     
     return result
 
+@auto_delete(timeout=120)  # 设置2分钟超时
 def handle_search_command(update: Update, context: CallbackContext):
     """处理/search命令"""
     if not update.message:

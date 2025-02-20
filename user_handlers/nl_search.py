@@ -5,7 +5,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, CommandHandler, CallbackQueryHandler
 from database import User, Message, Chat, DBSession
 from sqlalchemy import and_, or_, func
-from utils import get_filter_chats, get_text_func
+from utils import get_filter_chats, get_text_func, auto_delete
 import os
 import httpx
 import telegram
@@ -282,6 +282,7 @@ def format_parsed_data(parsed_data: dict) -> str:
     
     return result + "\n"
 
+@auto_delete(timeout=120)  # 设置2分钟超时
 def handle_nl_search(update: Update, context: CallbackContext):
     """处理自然语言搜索命令"""
     logging.info("Received nlsearch command")
