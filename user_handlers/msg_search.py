@@ -291,7 +291,7 @@ def format_search_results(messages, page, total_count):
 def handle_search_command(update: Update, context: CallbackContext):
     """处理/search命令"""
     if not update.message:
-        return
+        return None
     
     query = ' '.join(context.args) if context.args else ''
     user, keywords, page = get_query_matches(query)
@@ -303,8 +303,7 @@ def handle_search_command(update: Update, context: CallbackContext):
     # 检查是否有启用的群组
     enabled_chats = [chat for chat in chats if chat.enable]
     if not enabled_chats:
-        update.message.reply_text(_("No enabled groups found, please use /start to enable the bot first"))
-        return
+        return update.message.reply_text(_("No enabled groups found, please use /start to enable the bot first"))
         
     filter_chats = []
     for chat in enabled_chats:
@@ -325,9 +324,8 @@ def handle_search_command(update: Update, context: CallbackContext):
     session.close()
     
     if len(filter_chats) == 0:
-        update.message.reply_text(_("You are not a member of any groups where the bot is enabled.") + "\n" + 
+        return update.message.reply_text(_("You are not a member of any groups where the bot is enabled.") + "\n" + 
                                 _("Please ensure:\n1. Use /start to enable the bot\n2. Grant admin rights\n3. Disable privacy mode"))
-        return
     
     messages, count = search_messages(user, keywords, page, filter_chats)
     total_pages = math.ceil(count / SEARCH_PAGE_SIZE)
@@ -338,7 +336,7 @@ def handle_search_command(update: Update, context: CallbackContext):
         'keywords': keywords
     }
     
-    update.message.reply_text(
+    return update.message.reply_text(
         result_text,
         parse_mode='Markdown',
         disable_web_page_preview=True,

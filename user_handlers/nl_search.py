@@ -289,7 +289,7 @@ def handle_nl_search(update: Update, context: CallbackContext):
     
     if not update.message or not update.message.text:
         logging.warning("No message or text found in update")
-        return
+        return None
     
     # 获取查询文本
     query = ' '.join(context.args)
@@ -297,8 +297,7 @@ def handle_nl_search(update: Update, context: CallbackContext):
     
     if not query:
         logging.info("Empty query, sending help message")
-        update.message.reply_text(_("Please provide a search query after /nlsearch"))
-        return
+        return update.message.reply_text(_("Please provide a search query after /nlsearch"))
     
     try:
         # 获取当前用户和群组信息
@@ -308,16 +307,14 @@ def handle_nl_search(update: Update, context: CallbackContext):
         
         # 检查是否在群组中执行命令
         if update.effective_chat.type == 'private':
-            update.message.reply_text(_("This command can only be used in groups"))
-            return
+            return update.message.reply_text(_("This command can only be used in groups"))
         
         session = DBSession()
         
         # 检查当前群组是否启用
         current_chat = session.query(Chat).filter_by(id=current_chat_id).first()
         if not current_chat or not current_chat.enable:
-            update.message.reply_text(_("Bot is not enabled in this group. Please use /start first."))
-            return
+            return update.message.reply_text(_("Bot is not enabled in this group. Please use /start first."))
         
         # 检查用户在当前群组的权限
         try:
@@ -326,17 +323,15 @@ def handle_nl_search(update: Update, context: CallbackContext):
                 user_id=from_user_id
             )
             if chat_member.status in ['left', 'kicked']:
-                update.message.reply_text(_("You must be a member of this group to search messages."))
-                return
+                return update.message.reply_text(_("You must be a member of this group to search messages."))
         except telegram.error.BadRequest as e:
             logging.error(f"获取群组 {current_chat_id} 成员信息失败: {str(e)}")
             if "administrator" in str(e).lower():
-                update.message.reply_text(_("Bot requires admin privileges in this group"))
-            return
+                return update.message.reply_text(_("Bot requires admin privileges in this group"))
+            return None
         except Exception as e:
             logging.error(f"检查用户权限时发生错误: {str(e)}")
-            update.message.reply_text(_("Failed to verify your group membership"))
-            return
+            return update.message.reply_text(_("Failed to verify your group membership"))
         
         # 只搜索当前群组的消息
         filter_chats = [(current_chat_id, current_chat.title)]
@@ -373,10 +368,10 @@ def handle_nl_search(update: Update, context: CallbackContext):
             context.user_data['last_chat_id'] = current_chat_id
         except Exception as e:
             logging.error(f"Query parsing failed: {str(e)}", exc_info=True)
-            update.message.reply_text(
+            status_message.delete()
+            return update.message.reply_text(
                 _("Sorry, I couldn't understand your query. Please try again with a different wording.")
             )
-            return
         
         # 执行搜索
         logging.info("Executing database search")
@@ -389,17 +384,20 @@ def handle_nl_search(update: Update, context: CallbackContext):
         result_text = format_parsed_data(saved_query) + format_search_results(messages, 1, count)
         
         # 发送结果
-        status_message.edit_text(
+        sent_message = status_message.edit_text(
             result_text,
             parse_mode='Markdown',
             disable_web_page_preview=True,
             reply_markup=build_nl_keyboard(1, total_pages, saved_query)
         )
         logging.info("Search results sent successfully")
+        return sent_message
         
     except Exception as e:
         logging.error(f"Natural language search failed: {str(e)}", exc_info=True)
-        update.message.reply_text(
+        if 'status_message' in locals():
+            status_message.delete()
+        return update.message.reply_text(
             _("An error occurred while processing your search. Please try again later.")
         )
     finally:
