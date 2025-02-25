@@ -1,13 +1,27 @@
 # coding: utf-8
+import os
 from sqlalchemy import Column, INTEGER, TEXT, BOOLEAN, DATETIME, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import StaticPool
 
-engine = create_engine('sqlite:///./config/bot.db',
-                       connect_args={'check_same_thread': False},
-                       poolclass=StaticPool,
-                       echo=False)
+# 获取数据库URL配置，默认使用SQLite
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///./config/bot.db')
+
+# 创建数据库引擎
+engine_kwargs = {
+    'echo': False
+}
+
+# SQLite特定配置
+if DATABASE_URL.startswith('sqlite'):
+    engine_kwargs.update({
+        'connect_args': {'check_same_thread': False},
+        'poolclass': StaticPool
+    })
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
+
 DBSession = sessionmaker(bind=engine)
 Base = declarative_base()
 
