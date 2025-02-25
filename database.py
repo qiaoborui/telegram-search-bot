@@ -1,6 +1,6 @@
 # coding: utf-8
 import os
-from sqlalchemy import Column, INTEGER, TEXT, BOOLEAN, DATETIME, create_engine
+from sqlalchemy import Column, INTEGER, TEXT, BOOLEAN, DATETIME, TIMESTAMP, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.pool import StaticPool
@@ -39,7 +39,7 @@ class Message(Base):
     photo = Column(TEXT)
     audio = Column(TEXT)
     voice = Column(TEXT)
-    date = Column(DATETIME)
+    date = Column(TIMESTAMP)
     from_id = Column(INTEGER)
     from_chat = Column(INTEGER)
 
@@ -59,7 +59,7 @@ class UserAlias(Base):
     user_id = Column(INTEGER)  # The actual user ID this alias refers to
     alias = Column(TEXT)  # The alias name
     created_by = Column(INTEGER)  # The user ID who created this alias
-    created_at = Column(DATETIME)  # When this alias was created
+    created_at = Column(TIMESTAMP)  # When this alias was created
 
 
 class Chat(Base):
