@@ -9,11 +9,18 @@ from telegram.ext import InlineQueryHandler, CommandHandler, CallbackQueryHandle
 from database import User, Message, Chat, DBSession
 from sqlalchemy import and_, or_
 import pytz
+import json
 
 from utils import get_filter_chats, is_userbot_mode, get_text_func, auto_delete
 
 # Initialize translation function
 _ = get_text_func()
+
+# Helper function to safely use the translation function
+def safe_translate(text):
+    if callable(_):
+        return _(text)
+    return text
 
 SEARCH_PAGE_SIZE = 25
 CACHE_TIME = 300 if not os.getenv('CACHE_TIME') else int(os.getenv('CACHE_TIME'))
@@ -346,26 +353,31 @@ def handle_search_command(update: Update, context: CallbackContext):
     )
 
 def handle_page_callback(update: Update, context: CallbackContext):
-    """处理翻页回调"""
     query = update.callback_query
+    from_user_id = query.from_user.id
     
-    if query.data == "noop":
-        query.answer()
-        return
-        
     try:
-        # 解析回调数据
-        _, callback_query = query.data.split('_', 1)
-        user, keywords, page = get_query_matches(callback_query)
+        data = query.data
+        parts = data.split('|')
         
-        from_user_id = update.effective_user.id
-        session = DBSession()
-        chats = session.query(Chat)
+        if len(parts) < 3:
+            query.answer(safe_translate("Invalid callback data"), show_alert=True)
+            return
+            
+        action = parts[0]
+        if action != 'page':
+            return
+            
+        page = int(parts[1])
+        query_params = json.loads(parts[2])
         
-        enabled_chats = [chat for chat in chats if chat.enable]
+        user = query_params.get('user')
+        keywords = query_params.get('keywords')
+        
         filter_chats = []
+        session = DBSession()
         
-        for chat in enabled_chats:
+        for chat in session.query(Chat).all():
             try:
                 chat_member = context.bot.get_chat_member(
                     chat_id=chat.id, user_id=from_user_id)
@@ -378,14 +390,14 @@ def handle_page_callback(update: Update, context: CallbackContext):
         session.close()
         
         if not filter_chats:
-            query.answer(_("No searchable groups, please ensure the bot is properly enabled"), show_alert=True)
+            query.answer(safe_translate("No searchable groups, please ensure the bot is properly enabled"), show_alert=True)
             return
             
         messages, count = search_messages(user, keywords, page, filter_chats)
         total_pages = math.ceil(count / SEARCH_PAGE_SIZE)
         
         if page > total_pages:
-            query.answer(_("Already at the last page"), show_alert=True)
+            query.answer(safe_translate("Already at the last page"), show_alert=True)
             return
             
         result_text = format_search_results(messages, page, count)
@@ -403,7 +415,7 @@ def handle_page_callback(update: Update, context: CallbackContext):
         
     except Exception as e:
         logging.error(f"处理翻页回调时发生错误: {str(e)}")
-        query.answer(_("Error processing page request, please try again"), show_alert=True)
+        query.answer(safe_translate("Error processing page request, please try again"), show_alert=True)
     
     query.answer()
 

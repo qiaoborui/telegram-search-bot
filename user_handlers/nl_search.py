@@ -16,6 +16,12 @@ import pytz
 # Initialize translation function
 _ = get_text_func()
 
+# Helper function to safely use the translation function
+def safe_translate(text):
+    if callable(_):
+        return _(text)
+    return text
+
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 DEEPSEEK_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
 
@@ -297,8 +303,7 @@ def handle_nl_search(update: Update, context: CallbackContext):
     logging.info(f"Search query: {query}")
     
     if not query:
-        logging.info("Empty query, sending help message")
-        return update.message.reply_text(_("Please provide a search query after /nlsearch"))
+        return update.message.reply_text(safe_translate("Please provide a search query after /nlsearch"))
     
     try:
         # 获取当前用户和群组信息
@@ -306,33 +311,36 @@ def handle_nl_search(update: Update, context: CallbackContext):
         current_chat_id = update.effective_chat.id
         logging.info(f"Processing request for user {from_user_id} in chat {current_chat_id}")
         
-        # 检查是否在群组中执行命令
-        if update.effective_chat.type == 'private':
-            return update.message.reply_text(_("This command can only be used in groups"))
+        # Check if command is used in a group
+        if update.effective_chat.type not in ['group', 'supergroup']:
+            return update.message.reply_text(safe_translate("This command can only be used in groups"))
         
         session = DBSession()
         
-        # 检查当前群组是否启用
+        # Check if bot is enabled in this group
         current_chat = session.query(Chat).filter_by(id=current_chat_id).first()
-        if not current_chat or not current_chat.enable:
-            return update.message.reply_text(_("Bot is not enabled in this group. Please use /start first."))
         
-        # 检查用户在当前群组的权限
+        if not current_chat or not current_chat.enable:
+            session.close()
+            return update.message.reply_text(safe_translate("Bot is not enabled in this group. Please use /start first."))
+        
+        # Check if user is a member of the group
         try:
             chat_member = context.bot.get_chat_member(
                 chat_id=current_chat_id, 
                 user_id=from_user_id
             )
             if chat_member.status in ['left', 'kicked']:
-                return update.message.reply_text(_("You must be a member of this group to search messages."))
+                session.close()
+                return update.message.reply_text(safe_translate("You must be a member of this group to search messages."))
         except telegram.error.BadRequest as e:
             logging.error(f"获取群组 {current_chat_id} 成员信息失败: {str(e)}")
-            if "administrator" in str(e).lower():
-                return update.message.reply_text(_("Bot requires admin privileges in this group"))
-            return None
+            session.close()
+            return update.message.reply_text(safe_translate("Bot requires admin privileges in this group"))
         except Exception as e:
-            logging.error(f"检查用户权限时发生错误: {str(e)}")
-            return update.message.reply_text(_("Failed to verify your group membership"))
+            logging.error(f"验证用户群组成员资格时出错: {str(e)}")
+            session.close()
+            return update.message.reply_text(safe_translate("Failed to verify your group membership"))
         
         # 只搜索当前群组的消息
         filter_chats = [(current_chat_id, current_chat.title)]
@@ -340,7 +348,7 @@ def handle_nl_search(update: Update, context: CallbackContext):
         
         # 使用LLM解析查询
         current_time = datetime.now()
-        status_message = update.message.reply_text(_("Analyzing your query..."))
+        status_message = update.message.reply_text(safe_translate("Analyzing your query..."))
         logging.info("Calling DeepSeek API for query analysis")
         
         try:
@@ -371,7 +379,7 @@ def handle_nl_search(update: Update, context: CallbackContext):
             logging.error(f"Query parsing failed: {str(e)}", exc_info=True)
             status_message.delete()
             return update.message.reply_text(
-                _("Sorry, I couldn't understand your query. Please try again with a different wording.")
+                safe_translate("Sorry, I couldn't understand your query. Please try again with a different wording.")
             )
         
         # 执行搜索
@@ -399,7 +407,7 @@ def handle_nl_search(update: Update, context: CallbackContext):
         if 'status_message' in locals():
             status_message.delete()
         return update.message.reply_text(
-            _("An error occurred while processing your search. Please try again later.")
+            safe_translate("An error occurred while processing your search. Please try again later.")
         )
     finally:
         if 'session' in locals():
@@ -446,7 +454,7 @@ def handle_nl_page_callback(update: Update, context: CallbackContext):
         # 检查是否是原始搜索的群组
         original_chat_id = context.user_data.get('last_chat_id')
         if original_chat_id != current_chat_id:
-            query.answer(_("Please use the search command in the original group"), show_alert=True)
+            query.answer(safe_translate("Please use the search command in the original group"), show_alert=True)
             return
         
         session = DBSession()
@@ -458,17 +466,17 @@ def handle_nl_page_callback(update: Update, context: CallbackContext):
                 user_id=from_user_id
             )
             if chat_member.status in ['left', 'kicked']:
-                query.answer(_("You are no longer a member of this group"), show_alert=True)
+                query.answer(safe_translate("You are no longer a member of this group"), show_alert=True)
                 return
         except telegram.error.BadRequest as e:
             logging.error(f"获取群组 {current_chat_id} 成员信息失败: {str(e)}")
-            query.answer(_("Failed to verify your group membership"), show_alert=True)
+            query.answer(safe_translate("Failed to verify your group membership"), show_alert=True)
             return
         
         # 获取群组信息
         current_chat = session.query(Chat).filter_by(id=current_chat_id).first()
         if not current_chat or not current_chat.enable:
-            query.answer(_("Bot is no longer enabled in this group"), show_alert=True)
+            query.answer(safe_translate("Bot is no longer enabled in this group"), show_alert=True)
             return
         
         # 只搜索当前群组
@@ -491,13 +499,13 @@ def handle_nl_page_callback(update: Update, context: CallbackContext):
         messages, count = search_messages_with_parsed_data(search_params, filter_chats, session, page=page)
         
         if count == 0:
-            query.answer(_("No messages found matching your criteria"), show_alert=True)
+            query.answer(safe_translate("No messages found matching your criteria"), show_alert=True)
             return
             
         total_pages = math.ceil(count / 25)
         
         if page > total_pages:
-            query.answer(_("Already at the last page"), show_alert=True)
+            query.answer(safe_translate("Already at the last page"), show_alert=True)
             return
         
         # 格式化结果
@@ -514,7 +522,7 @@ def handle_nl_page_callback(update: Update, context: CallbackContext):
         
     except Exception as e:
         logging.error(f"Error handling page callback: {str(e)}", exc_info=True)
-        query.answer(_("Error processing page request, please try again"), show_alert=True)
+        query.answer(safe_translate("Error processing page request, please try again"), show_alert=True)
     finally:
         if 'session' in locals():
             session.close()
