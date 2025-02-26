@@ -10,15 +10,20 @@ DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///./config/bot.db')
 
 # 创建数据库引擎
 engine_kwargs = {
-    'echo': False
+    'echo': False,
+    'pool_size': 20,  # 增加连接池大小
+    'max_overflow': 30,  # 增加最大溢出连接数
+    'pool_timeout': 60,  # 增加连接超时时间
+    'pool_recycle': 3600,  # 每小时回收连接
 }
 
 # SQLite特定配置
 if DATABASE_URL.startswith('sqlite'):
-    engine_kwargs.update({
+    engine_kwargs = {
+        'echo': False,
         'connect_args': {'check_same_thread': False},
         'poolclass': StaticPool
-    })
+    }
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 

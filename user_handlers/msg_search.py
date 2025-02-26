@@ -283,7 +283,8 @@ def format_search_results(messages, page, total_count):
             date_str = local_date.strftime("%Y-%m-%d %H:%M")
             
             # 添加消息链接和格式化
-            result += f"[*{html.escape(msg['user'])}*: {message_text}]({msg['link']}) | {date_str}\n"
+            user_name = msg['user'] if msg['user'] is not None else 'Unknown'
+            result += f"[*{html.escape(user_name)}*: {message_text}]({msg['link']}) | {date_str}\n"
     
     return result
 
