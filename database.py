@@ -35,7 +35,7 @@ class Message(Base):
     __tablename__ = 'message'
 
     _id = Column(INTEGER, primary_key=True)
-    id = Column(BIGINT)
+    id = Column(BIGINT, index=True)
     link = Column(TEXT)
     type = Column(TEXT)  # 文本、图像、视频、音频、语音
     category = Column(TEXT)  # 分类
@@ -44,35 +44,35 @@ class Message(Base):
     photo = Column(TEXT)
     audio = Column(TEXT)
     voice = Column(TEXT)
-    date = Column(TIMESTAMP)
-    from_id = Column(BIGINT)
-    from_chat = Column(BIGINT)
+    date = Column(TIMESTAMP, index=True)
+    from_id = Column(BIGINT, index=True)
+    from_chat = Column(BIGINT, index=True)
 
 
 class User(Base):
     __tablename__ = 'user'
 
     id = Column(BIGINT, primary_key=True)
-    fullname = Column(TEXT)
-    username = Column(TEXT)
+    fullname = Column(TEXT, index=True)
+    username = Column(TEXT, index=True)
 
 
 class UserAlias(Base):
     __tablename__ = 'user_alias'
 
     id = Column(INTEGER, primary_key=True)
-    user_id = Column(BIGINT)  # The actual user ID this alias refers to
-    alias = Column(TEXT)  # The alias name
-    created_by = Column(BIGINT)  # The user ID who created this alias
-    created_at = Column(TIMESTAMP)  # When this alias was created
+    user_id = Column(BIGINT, index=True)
+    alias = Column(TEXT, index=True)
+    created_by = Column(BIGINT)
+    created_at = Column(TIMESTAMP)
 
 
 class Chat(Base):
     __tablename__ = 'chat'
 
     id = Column(BIGINT, primary_key=True)
-    title = Column(TEXT)
-    enable = Column(BOOLEAN)
+    title = Column(TEXT, index=True)
+    enable = Column(BOOLEAN, index=True)
 
 
 Base.metadata.create_all(engine)
