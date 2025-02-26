@@ -12,6 +12,7 @@ import pytz
 
 from utils import get_filter_chats, is_userbot_mode, get_text_func, auto_delete
 
+# Initialize translation function
 _ = get_text_func()
 
 SEARCH_PAGE_SIZE = 25

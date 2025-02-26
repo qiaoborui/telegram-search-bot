@@ -15,11 +15,21 @@ USERBOT_ADMIN_FILE = '.userbot_admin'
 DEFAULT_DELETE_TIMEOUT = int(os.getenv('DELETE_TIMEOUT', '60'))
 
 def get_text_func():
-    # Init i18n func
-    gettext.bindtextdomain('bot', 'locale')
-    gettext.textdomain('bot')
-    _ = gettext.gettext
-    return _
+    """Initialize and return the translation function.
+    This function ensures proper initialization of gettext and returns a translation function
+    that will always work, even if translation files are not found."""
+    try:
+        gettext.bindtextdomain('bot', 'locale')
+        gettext.textdomain('bot')
+        return gettext.gettext
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to initialize translations: {str(e)}")
+        # Return a fallback function that just returns the input string
+        return lambda x: x
+
+# Initialize the translation function once at module level
+_ = get_text_func()
 
 def delay_delete(bot, chat_id, message_id, timeout=None):
     if timeout is None:

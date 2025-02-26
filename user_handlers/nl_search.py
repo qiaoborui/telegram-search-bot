@@ -13,6 +13,7 @@ import math
 from datetime import timezone
 import pytz
 
+# Initialize translation function
 _ = get_text_func()
 
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
