@@ -355,8 +355,11 @@ def handle_nl_search(update: Update, context: CallbackContext):
             # 保存查询数据和当前群组ID到用户数据中
             context.user_data['last_nl_query'] = saved_query
             context.user_data['last_chat_id'] = current_chat_id
+            
             # 保存查询参数以便在回调数据过长时使用
             context.user_data['last_search_params'] = saved_query
+            # 明确保存当前群组ID，确保只搜索当前群组的消息
+            context.user_data['current_search_chat_id'] = current_chat_id
         except Exception as e:
             logging.error(f"Query parsing failed: {str(e)}", exc_info=True)
             status_message.delete()

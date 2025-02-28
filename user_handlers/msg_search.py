@@ -243,7 +243,7 @@ def handle_search_command(update: Update, context: CallbackContext):
     current_chat_id = update.effective_chat.id
     
     # 获取可搜索的群组
-    filter_chats = get_filter_chats_for_user(context, from_user_id)
+    filter_chats = get_filter_chats_for_user(context, from_user_id, current_chat_id)
     
     if len(filter_chats) == 0:
         return update.message.reply_text(safe_translate("You are not a member of any groups where the bot is enabled.") + "\n" + 
@@ -251,6 +251,8 @@ def handle_search_command(update: Update, context: CallbackContext):
     
     # 保存当前群组ID到用户数据中，用于翻页时验证
     context.user_data['last_chat_id'] = current_chat_id
+    # 明确保存当前群组ID，确保只搜索当前群组的消息
+    context.user_data['current_search_chat_id'] = current_chat_id
     
     # 构建查询参数
     query_params = {

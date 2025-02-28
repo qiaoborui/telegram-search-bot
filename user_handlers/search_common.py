@@ -384,7 +384,9 @@ def handle_search_page_callback(update: Update, context: CallbackContext):
             return
         
         # 获取可搜索的群组
-        filter_chats = get_filter_chats_for_user(context, from_user_id, original_chat_id)
+        # 使用current_search_chat_id确保只搜索当前群组的消息
+        search_chat_id = context.user_data.get('current_search_chat_id', original_chat_id)
+        filter_chats = get_filter_chats_for_user(context, from_user_id, search_chat_id)
         
         if not filter_chats:
             query.answer(safe_translate("No searchable groups, please ensure the bot is properly enabled"), show_alert=True)
