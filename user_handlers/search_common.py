@@ -46,17 +46,30 @@ def build_search_keyboard(page, total_pages, search_type, query_params):
     
     # 确保回调数据不超过64字节
     max_callback_length = 64
-    if len(f"search|{search_type}|{page}|{query_json}") > max_callback_length:
+    callback_data = f"search|{search_type}|{page}|{query_json}"
+    
+    if len(callback_data) > max_callback_length:
         # 如果超过限制，进一步压缩
-        logging.warning(f"Callback data too long: {len(query_json)} bytes")
+        logging.warning(f"Callback data too long: {len(callback_data)} bytes")
         compressed_params = further_compress_params(compressed_params)
         query_json = json.dumps(compressed_params)
-        logging.info(f"Compressed to: {len(query_json)} bytes")
+        callback_data = f"search|{search_type}|{page}|{query_json}"
+        logging.info(f"Compressed to: {len(callback_data)} bytes")
+        
+        # 如果还是太长，使用最小化的回调数据
+        if len(callback_data) > max_callback_length:
+            # 最后的手段：只保留页码信息，丢弃查询参数
+            callback_data = f"search|{search_type}|{page}|{{}}"
+            logging.warning(f"Using minimal callback data: {len(callback_data)} bytes")
     
     if page > 1:
+        prev_callback = f"search|{search_type}|{page-1}|{query_json}"
+        if len(prev_callback) > max_callback_length:
+            prev_callback = f"search|{search_type}|{page-1}|{{}}"
+        
         buttons.append(InlineKeyboardButton(
             "⬅️", 
-            callback_data=f"search|{search_type}|{page-1}|{query_json}"
+            callback_data=prev_callback
         ))
     
     buttons.append(InlineKeyboardButton(
@@ -65,9 +78,13 @@ def build_search_keyboard(page, total_pages, search_type, query_params):
     ))
     
     if page < total_pages:
+        next_callback = f"search|{search_type}|{page+1}|{query_json}"
+        if len(next_callback) > max_callback_length:
+            next_callback = f"search|{search_type}|{page+1}|{{}}"
+            
         buttons.append(InlineKeyboardButton(
             "➡️", 
-            callback_data=f"search|{search_type}|{page+1}|{query_json}"
+            callback_data=next_callback
         ))
     
     keyboard.append(buttons)
@@ -106,15 +123,15 @@ def further_compress_params(params):
     # 如果还是太长，只保留最基本的信息
     minimal = {}
     
-    if 'u' in params:
-        minimal['u'] = params['u'][:5]
+    # 只保留用户名，最多3个字符
+    if 'u' in params and params['u']:
+        minimal['u'] = params['u'][:3]
     
-    if 't' in params:
-        # 只保留日期的月和日
-        minimal['t'] = {
-            's': params['t']['s'][-5:] if 's' in params['t'] else None,
-            'e': params['t']['e'][-5:] if 'e' in params['t'] else None
-        }
+    # 时间范围只保留结束日期的月和日
+    if 't' in params and 'e' in params['t']:
+        minimal['t'] = {'e': params['t']['e'][-5:]}
+    
+    # 完全省略关键词和群组
     
     return minimal
 
@@ -275,9 +292,22 @@ def handle_search_page_callback(update: Update, context: CallbackContext):
             return
             
         page = int(page)
-        compressed_params = json.loads(query_json)
-        # 解压缩查询参数
-        query_params = decompress_query_params(compressed_params)
+        
+        # 处理空查询参数的情况
+        if query_json == "{}" or not query_json:
+            # 如果查询参数为空，使用用户数据中存储的最后一次查询
+            if 'last_search_params' not in context.user_data:
+                query.answer(safe_translate("Search parameters lost. Please search again."), show_alert=True)
+                return
+            query_params = context.user_data['last_search_params']
+            logging.info("Using cached search parameters from user_data")
+        else:
+            # 正常解析查询参数
+            compressed_params = json.loads(query_json)
+            # 解压缩查询参数
+            query_params = decompress_query_params(compressed_params)
+            # 缓存查询参数以备后用
+            context.user_data['last_search_params'] = query_params
         
         # 获取当前用户ID
         from_user_id = update.effective_user.id

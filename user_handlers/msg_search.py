@@ -258,6 +258,9 @@ def handle_search_command(update: Update, context: CallbackContext):
         'keywords': keywords
     }
     
+    # 保存查询参数以便在回调数据过长时使用
+    context.user_data['last_search_params'] = query_params
+    
     logging.info(f"Executing search with params: {query_params}")
     
     try:
