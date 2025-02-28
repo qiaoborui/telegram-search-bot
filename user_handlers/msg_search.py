@@ -2,6 +2,7 @@ import math
 import re
 import os
 import logging
+import json
 from telegram import InlineQueryResultArticle, InputTextMessageContent, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import InlineQueryHandler, CommandHandler, CallbackQueryHandler, CallbackContext
 from database import User, Message, Chat, DBSession
@@ -257,17 +258,33 @@ def handle_search_command(update: Update, context: CallbackContext):
         'keywords': keywords
     }
     
-    messages, count = search_messages(user, keywords, page, filter_chats)
-    total_pages = math.ceil(count / SEARCH_PAGE_SIZE)
+    logging.info(f"Executing search with params: {query_params}")
     
-    result_text = format_search_results(messages, page, count)
-    
-    return update.message.reply_text(
-        result_text,
-        parse_mode='Markdown',
-        disable_web_page_preview=True,
-        reply_markup=build_search_keyboard(page, total_pages, "search", query_params)
-    )
+    try:
+        messages, count = search_messages(user, keywords, page, filter_chats)
+        total_pages = math.ceil(count / SEARCH_PAGE_SIZE)
+        
+        result_text = format_search_results(messages, page, count)
+        
+        # 检查回调数据长度
+        test_query_json = json.dumps(query_params)
+        callback_data_length = len(f"search|search|1|{test_query_json}")
+        logging.info(f"Original callback data length: {callback_data_length} bytes")
+        
+        if callback_data_length > 64:
+            logging.warning("Callback data exceeds Telegram's 64 byte limit, will be compressed")
+        
+        return update.message.reply_text(
+            result_text,
+            parse_mode='Markdown',
+            disable_web_page_preview=True,
+            reply_markup=build_search_keyboard(page, total_pages, "search", query_params)
+        )
+    except Exception as e:
+        logging.error(f"Search command failed: {str(e)}", exc_info=True)
+        return update.message.reply_text(
+            safe_translate("An error occurred while processing your search. Please try again later.")
+        )
 
 # 添加新的handler
 command_handler = CommandHandler('search', handle_search_command)
