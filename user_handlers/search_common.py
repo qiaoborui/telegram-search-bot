@@ -4,7 +4,7 @@ import logging
 import math
 import pytz
 import telegram
-from datetime import datetime
+from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
 from database import Chat, DBSession
@@ -38,11 +38,18 @@ def build_search_keyboard(page, total_pages, search_type, query_params):
     keyboard = []
     buttons = []
     
+    # 记录原始查询参数大小
+    original_json = json.dumps(query_params)
+    original_size = len(original_json)
+    logging.info(f"Original query params size: {original_size} bytes")
+    
     # 压缩查询参数以避免回调数据过长
     compressed_params = compress_query_params(query_params)
     
     # 将查询参数序列化为JSON字符串
     query_json = json.dumps(compressed_params)
+    compressed_size = len(query_json)
+    logging.info(f"Compressed query params size: {compressed_size} bytes (减少了 {original_size - compressed_size} bytes)")
     
     # 确保回调数据不超过64字节
     max_callback_length = 64
@@ -53,8 +60,9 @@ def build_search_keyboard(page, total_pages, search_type, query_params):
         logging.warning(f"Callback data too long: {len(callback_data)} bytes")
         compressed_params = further_compress_params(compressed_params)
         query_json = json.dumps(compressed_params)
+        further_compressed_size = len(query_json)
         callback_data = f"search|{search_type}|{page}|{query_json}"
-        logging.info(f"Compressed to: {len(callback_data)} bytes")
+        logging.info(f"Further compressed to: {len(callback_data)} bytes (减少了 {compressed_size - further_compressed_size} bytes)")
         
         # 如果还是太长，使用最小化的回调数据
         if len(callback_data) > max_callback_length:
@@ -100,13 +108,29 @@ def compress_query_params(params):
         compressed['k'] = [k[:10] for k in params['keywords'][:3]] if params['keywords'] else None
     
     if 'time_range' in params and params['time_range']:
-        # 只保留日期部分，不保留时间
+        # 将日期时间转换为时间戳
         time_range = params['time_range']
-        if 'start' in time_range and 'end' in time_range:
-            compressed['t'] = {
-                's': time_range['start'].split(' ')[0],
-                'e': time_range['end'].split(' ')[0]
-            }
+        compressed['t'] = {}
+        
+        if 'start' in time_range:
+            try:
+                # 解析日期时间字符串为datetime对象
+                start_dt = datetime.strptime(time_range['start'], '%Y-%m-%d %H:%M:%S')
+                # 转换为时间戳
+                compressed['t']['s'] = int(start_dt.timestamp())
+            except:
+                # 解析失败时不包含此字段
+                pass
+                
+        if 'end' in time_range:
+            try:
+                # 解析日期时间字符串为datetime对象
+                end_dt = datetime.strptime(time_range['end'], '%Y-%m-%d %H:%M:%S')
+                # 转换为时间戳
+                compressed['t']['e'] = int(end_dt.timestamp())
+            except:
+                # 解析失败时不包含此字段
+                pass
     
     if 'user' in params and params['user']:
         # 限制用户名长度
@@ -127,9 +151,13 @@ def further_compress_params(params):
     if 'u' in params and params['u']:
         minimal['u'] = params['u'][:3]
     
-    # 时间范围只保留结束日期的月和日
-    if 't' in params and 'e' in params['t']:
-        minimal['t'] = {'e': params['t']['e'][-5:]}
+    # 时间范围保留时间戳
+    if 't' in params:
+        minimal['t'] = {}
+        if 's' in params['t']:
+            minimal['t']['s'] = params['t']['s']
+        if 'e' in params['t']:
+            minimal['t']['e'] = params['t']['e']
     
     # 完全省略关键词和群组
     
@@ -147,20 +175,55 @@ def decompress_query_params(compressed_params):
         time_range = compressed_params['t']
         original['time_range'] = {}
         
-        # 处理短日期格式 (MM-DD)
-        if 's' in time_range and len(time_range['s']) <= 5:
-            # 假设是当前年份
-            year = datetime.now().year
-            original['time_range']['start'] = f"{year}-{time_range['s']} 00:00:00"
-        elif 's' in time_range:
-            original['time_range']['start'] = f"{time_range['s']} 00:00:00"
-            
-        if 'e' in time_range and len(time_range['e']) <= 5:
-            # 假设是当前年份
-            year = datetime.now().year
-            original['time_range']['end'] = f"{year}-{time_range['e']} 23:59:59"
-        elif 'e' in time_range:
-            original['time_range']['end'] = f"{time_range['e']} 23:59:59"
+        # 处理时间戳
+        if 's' in time_range:
+            try:
+                # 如果是整数时间戳
+                if isinstance(time_range['s'], int):
+                    # 从时间戳创建datetime对象
+                    start_dt = datetime.fromtimestamp(time_range['s'])
+                    original['time_range']['start'] = start_dt.strftime('%Y-%m-%d %H:%M:%S')
+                # 兼容旧格式 (短日期格式 MM-DD)
+                elif isinstance(time_range['s'], str) and len(time_range['s']) <= 5:
+                    year = datetime.now().year
+                    original['time_range']['start'] = f"{year}-{time_range['s']} 00:00:00"
+                # 兼容旧格式 (完整日期)
+                elif isinstance(time_range['s'], str):
+                    original['time_range']['start'] = f"{time_range['s']} 00:00:00"
+            except:
+                # 解析失败时使用默认值
+                original['time_range']['start'] = "2000-01-01 00:00:00"
+        
+        if 'e' in time_range:
+            try:
+                # 如果是整数时间戳
+                if isinstance(time_range['e'], int):
+                    # 从时间戳创建datetime对象
+                    end_dt = datetime.fromtimestamp(time_range['e'])
+                    original['time_range']['end'] = end_dt.strftime('%Y-%m-%d %H:%M:%S')
+                # 兼容旧格式 (短日期格式 MM-DD)
+                elif isinstance(time_range['e'], str) and len(time_range['e']) <= 5:
+                    year = datetime.now().year
+                    original['time_range']['end'] = f"{year}-{time_range['e']} 23:59:59"
+                # 兼容旧格式 (完整日期)
+                elif isinstance(time_range['e'], str):
+                    original['time_range']['end'] = f"{time_range['e']} 23:59:59"
+            except:
+                # 解析失败时使用当前时间
+                original['time_range']['end'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 如果只有结束日期，设置开始日期为结束日期的前一天
+        if 'end' in original['time_range'] and 'start' not in original['time_range']:
+            try:
+                end_dt = datetime.strptime(original['time_range']['end'], '%Y-%m-%d %H:%M:%S')
+                start_dt = end_dt - timedelta(days=1)
+                original['time_range']['start'] = start_dt.strftime('%Y-%m-%d %H:%M:%S')
+            except:
+                original['time_range']['start'] = "2000-01-01 00:00:00"
+        
+        # 如果只有开始日期，设置结束日期为开始日期的当天结束
+        if 'start' in original['time_range'] and 'end' not in original['time_range']:
+            original['time_range']['end'] = original['time_range']['start'].replace("00:00:00", "23:59:59")
     
     if 'u' in compressed_params:
         original['user'] = compressed_params['u']
@@ -308,6 +371,7 @@ def handle_search_page_callback(update: Update, context: CallbackContext):
             query_params = decompress_query_params(compressed_params)
             # 缓存查询参数以备后用
             context.user_data['last_search_params'] = query_params
+            logging.info(f"Decompressed query parameters: {query_params}")
         
         # 获取当前用户ID
         from_user_id = update.effective_user.id

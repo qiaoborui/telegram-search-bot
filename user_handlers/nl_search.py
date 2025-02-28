@@ -377,6 +377,7 @@ def handle_nl_search(update: Update, context: CallbackContext):
         test_query_json = json.dumps(saved_query)
         callback_data_length = len(f"search|nlsearch|1|{test_query_json}")
         logging.info(f"Original callback data length: {callback_data_length} bytes")
+        logging.info(f"Original query content: {test_query_json}")
         
         if callback_data_length > 64:
             logging.warning("Callback data exceeds Telegram's 64 byte limit, will be compressed")
@@ -388,12 +389,14 @@ def handle_nl_search(update: Update, context: CallbackContext):
             compressed_length = len(f"search|nlsearch|1|{compressed_json}")
             
             logging.info(f"Compressed callback data length: {compressed_length} bytes")
+            logging.info(f"Compressed query content: {compressed_json}")
             
             if compressed_length > 64:
                 further_compressed = further_compress_params(compressed)
                 further_compressed_json = json.dumps(further_compressed)
                 further_compressed_length = len(f"search|nlsearch|1|{further_compressed_json}")
                 logging.info(f"Further compressed callback data length: {further_compressed_length} bytes")
+                logging.info(f"Further compressed query content: {further_compressed_json}")
         
         # 发送结果
         try:
