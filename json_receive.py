@@ -1,9 +1,9 @@
 import socket
 import json
-from database import DBSession, Message, User, Chat
-from datetime import datetime
-from utils import get_text_func
 import re
+from datetime import datetime
+from database import DBSession, Message, User, Chat
+from utils import get_text_func
 
 TEMP_FILE_NAME = 'history_temp.json'
 BUFFER_SIZE = 1024

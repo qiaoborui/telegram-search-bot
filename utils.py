@@ -1,10 +1,10 @@
 import re
-from threading import Thread
 import functools
 import gettext
 import time
 import json
 import os
+from threading import Thread
 
 CONFIG_FILE = './config/.config.json'
 

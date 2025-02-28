@@ -1,15 +1,11 @@
 import math
 import re
-import html
-import telegram
 import os
 import logging
-from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultCachedSticker, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineQueryResultArticle, InputTextMessageContent, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import InlineQueryHandler, CommandHandler, CallbackQueryHandler, CallbackContext
 from database import User, Message, Chat, DBSession
 from sqlalchemy import and_, or_
-import pytz
-import json
 
 from utils import get_filter_chats, is_userbot_mode, get_text_func, auto_delete
 from .search_common import (

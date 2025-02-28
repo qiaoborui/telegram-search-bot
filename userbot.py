@@ -1,8 +1,6 @@
 from telethon import TelegramClient, events
-
-from utils import write_chat_members, load_chat_members, update_userbot_admin_id
+from utils import write_chat_members, load_chat_members, update_userbot_admin_id, get_text_func
 from database import DBSession, Message, User, Chat
-from utils import get_text_func
 
 import os
 import time

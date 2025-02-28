@@ -3,12 +3,10 @@ import html
 import logging
 import math
 import pytz
-from datetime import datetime
+import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
-from database import User, Message, Chat, DBSession
-from sqlalchemy import and_, or_, func
-import telegram
+from database import Chat, DBSession
 from utils import get_text_func, auto_delete
 
 # Initialize translation function
