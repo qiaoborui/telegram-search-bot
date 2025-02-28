@@ -4,6 +4,7 @@ import logging
 import math
 import pytz
 import telegram
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
 from database import Chat, DBSession
@@ -37,8 +38,20 @@ def build_search_keyboard(page, total_pages, search_type, query_params):
     keyboard = []
     buttons = []
     
+    # 压缩查询参数以避免回调数据过长
+    compressed_params = compress_query_params(query_params)
+    
     # 将查询参数序列化为JSON字符串
-    query_json = json.dumps(query_params)
+    query_json = json.dumps(compressed_params)
+    
+    # 确保回调数据不超过64字节
+    max_callback_length = 64
+    if len(f"search|{search_type}|{page}|{query_json}") > max_callback_length:
+        # 如果超过限制，进一步压缩
+        logging.warning(f"Callback data too long: {len(query_json)} bytes")
+        compressed_params = further_compress_params(compressed_params)
+        query_json = json.dumps(compressed_params)
+        logging.info(f"Compressed to: {len(query_json)} bytes")
     
     if page > 1:
         buttons.append(InlineKeyboardButton(
@@ -59,6 +72,86 @@ def build_search_keyboard(page, total_pages, search_type, query_params):
     
     keyboard.append(buttons)
     return InlineKeyboardMarkup(keyboard)
+
+def compress_query_params(params):
+    """压缩查询参数，移除不必要的数据"""
+    compressed = {}
+    
+    # 复制必要的字段
+    if 'keywords' in params and params['keywords']:
+        # 限制关键词长度
+        compressed['k'] = [k[:10] for k in params['keywords'][:3]] if params['keywords'] else None
+    
+    if 'time_range' in params and params['time_range']:
+        # 只保留日期部分，不保留时间
+        time_range = params['time_range']
+        if 'start' in time_range and 'end' in time_range:
+            compressed['t'] = {
+                's': time_range['start'].split(' ')[0],
+                'e': time_range['end'].split(' ')[0]
+            }
+    
+    if 'user' in params and params['user']:
+        # 限制用户名长度
+        compressed['u'] = params['user'][:10] if params['user'] else None
+    
+    if 'chat' in params and params['chat']:
+        # 限制群组名长度
+        compressed['c'] = params['chat'][:10] if params['chat'] else None
+    
+    return compressed
+
+def further_compress_params(params):
+    """进一步压缩参数，用于处理极端情况"""
+    # 如果还是太长，只保留最基本的信息
+    minimal = {}
+    
+    if 'u' in params:
+        minimal['u'] = params['u'][:5]
+    
+    if 't' in params:
+        # 只保留日期的月和日
+        minimal['t'] = {
+            's': params['t']['s'][-5:] if 's' in params['t'] else None,
+            'e': params['t']['e'][-5:] if 'e' in params['t'] else None
+        }
+    
+    return minimal
+
+def decompress_query_params(compressed_params):
+    """将压缩的查询参数还原为原始格式"""
+    original = {}
+    
+    if 'k' in compressed_params:
+        original['keywords'] = compressed_params['k']
+    
+    if 't' in compressed_params:
+        # 还原时间范围
+        time_range = compressed_params['t']
+        original['time_range'] = {}
+        
+        # 处理短日期格式 (MM-DD)
+        if 's' in time_range and len(time_range['s']) <= 5:
+            # 假设是当前年份
+            year = datetime.now().year
+            original['time_range']['start'] = f"{year}-{time_range['s']} 00:00:00"
+        elif 's' in time_range:
+            original['time_range']['start'] = f"{time_range['s']} 00:00:00"
+            
+        if 'e' in time_range and len(time_range['e']) <= 5:
+            # 假设是当前年份
+            year = datetime.now().year
+            original['time_range']['end'] = f"{year}-{time_range['e']} 23:59:59"
+        elif 'e' in time_range:
+            original['time_range']['end'] = f"{time_range['e']} 23:59:59"
+    
+    if 'u' in compressed_params:
+        original['user'] = compressed_params['u']
+    
+    if 'c' in compressed_params:
+        original['chat'] = compressed_params['c']
+    
+    return original
 
 def format_search_results(messages, page, total_count):
     """格式化搜索结果文本"""
@@ -182,7 +275,9 @@ def handle_search_page_callback(update: Update, context: CallbackContext):
             return
             
         page = int(page)
-        query_params = json.loads(query_json)
+        compressed_params = json.loads(query_json)
+        # 解压缩查询参数
+        query_params = decompress_query_params(compressed_params)
         
         # 获取当前用户ID
         from_user_id = update.effective_user.id

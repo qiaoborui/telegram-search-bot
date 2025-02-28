@@ -1,17 +1,14 @@
 import json
-from datetime import datetime, date, timedelta
+import os
+from datetime import datetime, timezone
 import logging
+import pytz
+import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, CommandHandler, CallbackQueryHandler
 from database import User, Message, Chat, DBSession
 from sqlalchemy import and_, or_, func
 from utils import get_filter_chats, get_text_func, auto_delete
-import os
-import httpx
-import telegram
-import math
-from datetime import timezone
-import pytz
 from .search_common import (
     build_search_keyboard, 
     format_search_results, 
@@ -372,20 +369,58 @@ def handle_nl_search(update: Update, context: CallbackContext):
         # 格式化结果
         result_text = format_parsed_data(saved_query) + format_search_results(messages, 1, count)
         
+        # 检查回调数据长度
+        test_query_json = json.dumps(saved_query)
+        callback_data_length = len(f"search|nlsearch|1|{test_query_json}")
+        logging.info(f"Original callback data length: {callback_data_length} bytes")
+        
+        if callback_data_length > 64:
+            logging.warning("Callback data exceeds Telegram's 64 byte limit, will be compressed")
+            
+            # 压缩查询参数
+            from .search_common import compress_query_params, further_compress_params
+            compressed = compress_query_params(saved_query)
+            compressed_json = json.dumps(compressed)
+            compressed_length = len(f"search|nlsearch|1|{compressed_json}")
+            
+            logging.info(f"Compressed callback data length: {compressed_length} bytes")
+            
+            if compressed_length > 64:
+                further_compressed = further_compress_params(compressed)
+                further_compressed_json = json.dumps(further_compressed)
+                further_compressed_length = len(f"search|nlsearch|1|{further_compressed_json}")
+                logging.info(f"Further compressed callback data length: {further_compressed_length} bytes")
+        
         # 发送结果
-        sent_message = status_message.edit_text(
-            result_text,
-            parse_mode='Markdown',
-            disable_web_page_preview=True,
-            reply_markup=build_search_keyboard(1, total_pages, "nlsearch", saved_query)
-        )
-        logging.info("Search results sent successfully")
-        return sent_message
+        try:
+            sent_message = status_message.edit_text(
+                result_text,
+                parse_mode='Markdown',
+                disable_web_page_preview=True,
+                reply_markup=build_search_keyboard(1, total_pages, "nlsearch", saved_query)
+            )
+            logging.info("Search results sent successfully")
+            return sent_message
+        except telegram.error.BadRequest as e:
+            logging.error(f"Failed to edit message: {str(e)}")
+            # 如果编辑失败，尝试发送新消息
+            status_message.delete()
+            sent_message = update.message.reply_text(
+                result_text,
+                parse_mode='Markdown',
+                disable_web_page_preview=True,
+                reply_markup=build_search_keyboard(1, total_pages, "nlsearch", saved_query)
+            )
+            logging.info("Search results sent as new message")
+            return sent_message
         
     except Exception as e:
         logging.error(f"Natural language search failed: {str(e)}", exc_info=True)
         if 'status_message' in locals():
-            status_message.delete()
+            try:
+                status_message.delete()
+            except:
+                pass
         return update.message.reply_text(
             safe_translate("An error occurred while processing your search. Please try again later.")
         )
