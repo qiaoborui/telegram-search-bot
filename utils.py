@@ -41,14 +41,31 @@ def delay_delete(bot, chat_id, message_id, timeout=None):
         pass  # Ignore any errors when trying to delete message
 
 
-def auto_delete(fn=None, *, timeout=None):
+def auto_delete(fn=None, *, timeout=None, delete_command=True):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kw):
+            update = args[0]
             bot = args[1].bot
+            
+            # Store the user's command message ID if it exists
+            user_message_id = None
+            user_chat_id = None
+            if delete_command and hasattr(update, 'message') and update.message:
+                user_message_id = update.message.message_id
+                user_chat_id = update.message.chat_id
+            
+            # Execute the original function
             sent_message = func(*args, **kw)
+            
+            # Delete the bot's response message
             if sent_message:
                 Thread(target=delay_delete, args=[bot, sent_message.chat_id, sent_message.message_id, timeout]).start()
+                
+                # Also delete the user's command message if available
+                if user_message_id and user_chat_id:
+                    Thread(target=delay_delete, args=[bot, user_chat_id, user_message_id, timeout]).start()
+                    
             return sent_message
         return wrapper
     

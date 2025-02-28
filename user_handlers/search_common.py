@@ -9,7 +9,7 @@ from telegram.ext import CallbackContext
 from database import User, Message, Chat, DBSession
 from sqlalchemy import and_, or_, func
 import telegram
-from utils import get_text_func
+from utils import get_text_func, auto_delete
 
 # Initialize translation function
 _ = get_text_func()
@@ -155,6 +155,7 @@ def get_filter_chats_for_user(context, from_user_id, current_chat_id=None):
         
     return filter_chats
 
+@auto_delete(timeout=120, delete_command=False)  # Callback queries don't need to delete the command
 def handle_search_page_callback(update: Update, context: CallbackContext):
     """
     处理通用的搜索翻页回调
