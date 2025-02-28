@@ -6,5 +6,6 @@ from . import (
     chatid_get,
     msg_search,
     msg_store,
-    nl_search
+    nl_search,
+    search_common
 ) 

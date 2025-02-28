@@ -11,7 +11,8 @@ from user_handlers import (
     chatid_get, 
     msg_search,
     msg_store,
-    nl_search
+    nl_search,
+    search_common
 )
 from user_jobs.commands_set import set_bot_commands
 from userbot import run_telethon
@@ -37,13 +38,17 @@ def setup_handlers(dispatcher):
     # Search handlers
     dispatcher.add_handler(msg_search.handler)
     dispatcher.add_handler(msg_search.command_handler)
-    dispatcher.add_handler(msg_search.callback_handler)
     
     # Natural language search handler
     logger.info("Registering natural language search handler...")
     dispatcher.add_handler(nl_search.nl_search_handler)
-    dispatcher.add_handler(nl_search.nl_page_handler)
     logger.info("Natural language search handler registered")
+    
+    # Common search callback handler
+    logger.info("Registering common search callback handler...")
+    dispatcher.add_handler(msg_search.callback_handler)
+    dispatcher.add_handler(nl_search.nl_page_handler)
+    logger.info("Common search callback handler registered")
     
     # Message store handler
     if not is_userbot_mode():

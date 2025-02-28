@@ -12,6 +12,13 @@ import pytz
 import json
 
 from utils import get_filter_chats, is_userbot_mode, get_text_func, auto_delete
+from .search_common import (
+    build_search_keyboard, 
+    format_search_results, 
+    get_filter_chats_for_user,
+    handle_search_page_callback,
+    SEARCH_PAGE_SIZE
+)
 
 # Initialize translation function
 _ = get_text_func()
@@ -22,7 +29,6 @@ def safe_translate(text):
         return _(text)
     return text
 
-SEARCH_PAGE_SIZE = 25
 CACHE_TIME = 300 if not os.getenv('CACHE_TIME') else int(os.getenv('CACHE_TIME'))
 
 
@@ -198,103 +204,34 @@ def inline_caps(update, context):
                 description=_('Attention! Do not click any buttons, otherwise an empty message will be sent'),
                 input_message_content=InputTextMessageContent('⁤')
             )]
-    else:
-        results = [
-            InlineQueryResultArticle(
-                id='info',
-                title=_('Total: {}. Page {} of {}').format(
-                    count, page, math.ceil(count / SEARCH_PAGE_SIZE)),
-                description=_('Attention! This is just a prompt message, do not click on it, otherwise a /help message will be sent'),
-                input_message_content=InputTextMessageContent(
-                    f'/help@{context.bot.get_me().username}')
-            )
-        ]
+        context.bot.answer_inline_query(
+            update.inline_query.id, results, cache_time=10)
+        return
 
-    for message in messages:
-        results.append(
-            InlineQueryResultArticle(
-                id=message['id'],
-                title='{}'.format(message['text'][:100]),
-                description=message['date'].strftime("%Y-%m-%d").ljust(40) + str(message['user']) + '@' + message[
-                    'chat'],
-                input_message_content=InputTextMessageContent(
-                    '「{}」<a href="{}">Via {}</a>'.format(html.escape(message['text']),
-                                                         message['link'],
-                                                         message['user']), parse_mode='html'
-                )
-            )
+    total_pages = math.ceil(count / SEARCH_PAGE_SIZE)
+
+    result_text = format_search_results(messages, page, count)
+    query_params = {
+        'user': user,
+        'keywords': keywords
+    }
+
+    results = [
+        InlineQueryResultArticle(
+            id='search_result',
+            title=_('Search Results (Total: {})').format(count),
+            description=_('Page {} of {}').format(page, total_pages),
+            input_message_content=InputTextMessageContent(
+                result_text,
+                parse_mode='Markdown',
+                disable_web_page_preview=True
+            ),
+            reply_markup=build_search_keyboard(page, total_pages, "search", query_params)
         )
+    ]
+
     context.bot.answer_inline_query(
-        update.inline_query.id, results, cache_time=CACHE_TIME, is_personal=True)
-
-
-def build_keyboard(page, total_pages, query_params):
-    """构建翻页键盘
-    query_params: 包含搜索参数的字典，包括 user 和 keywords
-    """
-    keyboard = []
-    buttons = []
-    
-    # 构建查询参数字符串
-    param_str = ''
-    if query_params.get('user'):
-        param_str += f"@{query_params['user']} "
-    if query_params.get('keywords'):
-        param_str += ' '.join(query_params['keywords']) + ' '
-    
-    if page > 1:
-        prev_command = f"{param_str}{page-1}".strip()
-        buttons.append(InlineKeyboardButton("⬅️", callback_data=f"page_{prev_command}"))
-    
-    buttons.append(InlineKeyboardButton(f"{page}/{total_pages}", callback_data="noop"))
-    
-    if page < total_pages:
-        next_command = f"{param_str}{page+1}".strip()
-        buttons.append(InlineKeyboardButton("➡️", callback_data=f"page_{next_command}"))
-    
-    keyboard.append(buttons)
-    return InlineKeyboardMarkup(keyboard)
-
-def format_search_results(messages, page, total_count):
-    """格式化搜索结果文本"""
-    if not messages:
-        return _("No results found")
-    
-    result = _("*Search Results* (Total: {})\n").format(total_count)
-    
-    # Group messages by chat
-    chat_messages = {}
-    for msg in messages:
-        if msg['chat'] not in chat_messages:
-            chat_messages[msg['chat']] = []
-        chat_messages[msg['chat']].append(msg)
-    
-    # 设置时区
-    local_tz = pytz.timezone('Asia/Shanghai')
-    
-    for chat, msgs in chat_messages.items():
-        # Add chat header
-        result += f"\n*{html.escape(chat)}*\n"
-        result += "━━━━━━━━━━━━━━━\n"
-        
-        for msg in msgs:
-            # Format message with embedded link and sender name
-            message_text = html.escape(msg['text'][:200])
-            if len(msg['text']) > 200:
-                message_text += "..."
-            
-            # 转换时间到本地时区
-            msg_date = msg['date']
-            if not msg_date.tzinfo:
-                msg_date = pytz.utc.localize(msg_date)
-            local_date = msg_date.astimezone(local_tz)
-            date_str = local_date.strftime("%Y-%m-%d %H:%M")
-            
-            # 添加消息链接和格式化
-            user_name = msg['user'] if msg['user'] is not None else 'Unknown'
-            result += f"[*{html.escape(user_name)}*: {message_text}]({msg['link']}) | {date_str}\n"
-    
-    return result
+        update.inline_query.id, results, cache_time=CACHE_TIME)
 
 @auto_delete(timeout=120)  # 设置2分钟超时
 def handle_search_command(update: Update, context: CallbackContext):
@@ -306,121 +243,38 @@ def handle_search_command(update: Update, context: CallbackContext):
     user, keywords, page = get_query_matches(query)
     
     from_user_id = update.effective_user.id
-    session = DBSession()
-    chats = session.query(Chat)
+    current_chat_id = update.effective_chat.id
     
-    # 检查是否有启用的群组
-    enabled_chats = [chat for chat in chats if chat.enable]
-    if not enabled_chats:
-        return update.message.reply_text(_("No enabled groups found, please use /start to enable the bot first"))
-        
-    filter_chats = []
-    for chat in enabled_chats:
-        try:
-            chat_member = context.bot.get_chat_member(
-                chat_id=chat.id, user_id=from_user_id)
-            if chat_member.status not in ['left', 'kicked']:
-                filter_chats.append((chat.id, chat.title))
-        except telegram.error.BadRequest as e:
-            logging.error(f"获取群组 {chat.id} 成员信息失败: {str(e)}")
-            if "administrator" in str(e).lower():
-                update.message.reply_text(_("Group {} requires bot admin privileges").format(chat.title))
-        except telegram.error.Unauthorized as e:
-            logging.error(f"群组 {chat.id} 未授权: {str(e)}")
-        except Exception as e:
-            logging.error(f"处理群组 {chat.id} 时发生错误: {str(e)}")
-    
-    session.close()
+    # 获取可搜索的群组
+    filter_chats = get_filter_chats_for_user(context, from_user_id)
     
     if len(filter_chats) == 0:
-        return update.message.reply_text(_("You are not a member of any groups where the bot is enabled.") + "\n" + 
-                                _("Please ensure:\n1. Use /start to enable the bot\n2. Grant admin rights\n3. Disable privacy mode"))
+        return update.message.reply_text(safe_translate("You are not a member of any groups where the bot is enabled.") + "\n" + 
+                                safe_translate("Please ensure:\n1. Use /start to enable the bot\n2. Grant admin rights\n3. Disable privacy mode"))
     
-    messages, count = search_messages(user, keywords, page, filter_chats)
-    total_pages = math.ceil(count / SEARCH_PAGE_SIZE)
+    # 保存当前群组ID到用户数据中，用于翻页时验证
+    context.user_data['last_chat_id'] = current_chat_id
     
-    result_text = format_search_results(messages, page, count)
+    # 构建查询参数
     query_params = {
         'user': user,
         'keywords': keywords
     }
     
+    messages, count = search_messages(user, keywords, page, filter_chats)
+    total_pages = math.ceil(count / SEARCH_PAGE_SIZE)
+    
+    result_text = format_search_results(messages, page, count)
+    
     return update.message.reply_text(
         result_text,
         parse_mode='Markdown',
         disable_web_page_preview=True,
-        reply_markup=build_keyboard(page, total_pages, query_params)
+        reply_markup=build_search_keyboard(page, total_pages, "search", query_params)
     )
-
-def handle_page_callback(update: Update, context: CallbackContext):
-    query = update.callback_query
-    from_user_id = query.from_user.id
-    
-    try:
-        data = query.data
-        parts = data.split('|')
-        
-        if len(parts) < 3:
-            query.answer(safe_translate("Invalid callback data"), show_alert=True)
-            return
-            
-        action = parts[0]
-        if action != 'page':
-            return
-            
-        page = int(parts[1])
-        query_params = json.loads(parts[2])
-        
-        user = query_params.get('user')
-        keywords = query_params.get('keywords')
-        
-        filter_chats = []
-        session = DBSession()
-        
-        for chat in session.query(Chat).all():
-            try:
-                chat_member = context.bot.get_chat_member(
-                    chat_id=chat.id, user_id=from_user_id)
-                if chat_member.status not in ['left', 'kicked']:
-                    filter_chats.append((chat.id, chat.title))
-            except (telegram.error.BadRequest, telegram.error.Unauthorized) as e:
-                logging.error(f"获取群组 {chat.id} 成员信息失败: {str(e)}")
-                continue
-        
-        session.close()
-        
-        if not filter_chats:
-            query.answer(safe_translate("No searchable groups, please ensure the bot is properly enabled"), show_alert=True)
-            return
-            
-        messages, count = search_messages(user, keywords, page, filter_chats)
-        total_pages = math.ceil(count / SEARCH_PAGE_SIZE)
-        
-        if page > total_pages:
-            query.answer(safe_translate("Already at the last page"), show_alert=True)
-            return
-            
-        result_text = format_search_results(messages, page, count)
-        query_params = {
-            'user': user,
-            'keywords': keywords
-        }
-        
-        query.edit_message_text(
-            result_text,
-            parse_mode='Markdown',
-            disable_web_page_preview=True,
-            reply_markup=build_keyboard(page, total_pages, query_params)
-        )
-        
-    except Exception as e:
-        logging.error(f"处理翻页回调时发生错误: {str(e)}")
-        query.answer(safe_translate("Error processing page request, please try again"), show_alert=True)
-    
-    query.answer()
 
 # 添加新的handler
 command_handler = CommandHandler('search', handle_search_command)
-callback_handler = CallbackQueryHandler(handle_page_callback)
+callback_handler = CallbackQueryHandler(handle_search_page_callback, pattern=r'^search\|search\|')
 
 handler = InlineQueryHandler(inline_caps)

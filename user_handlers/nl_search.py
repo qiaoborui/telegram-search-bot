@@ -12,6 +12,13 @@ import telegram
 import math
 from datetime import timezone
 import pytz
+from .search_common import (
+    build_search_keyboard, 
+    format_search_results, 
+    get_filter_chats_for_user,
+    handle_search_page_callback,
+    SEARCH_PAGE_SIZE
+)
 
 # Initialize translation function
 _ = get_text_func()
@@ -122,7 +129,7 @@ def parse_date_with_llm(query: str, current_time: datetime, from_user_id: int, r
         logging.error(f"DeepSeek API调用失败: {str(e)}")
         raise
 
-def search_messages_with_parsed_data(parsed_data: dict, filter_chats, session, page=1, page_size=25):
+def search_messages_with_parsed_data(parsed_data: dict, filter_chats, session, page=1, page_size=SEARCH_PAGE_SIZE):
     """使用解析后的数据搜索消息"""
     messages = []
     start = (page - 1) * page_size
@@ -230,33 +237,6 @@ def search_messages_with_parsed_data(parsed_data: dict, filter_chats, session, p
 
     logging.info(f"Retrieved {len(messages)} messages for page {page}")
     return messages, count
-
-def build_nl_keyboard(page, total_pages, parsed_data):
-    """构建翻页键盘
-    parsed_data: 包含搜索参数的字典，包括 user 和 keywords
-    """
-    keyboard = []
-    buttons = []
-    
-    # 构建查询参数字符串
-    param_str = ''
-    if parsed_data.get('user'):
-        param_str += f"@{parsed_data['user']} "
-    if parsed_data.get('keywords'):
-        param_str += ' '.join(parsed_data['keywords']) + ' '
-    
-    if page > 1:
-        prev_command = f"{param_str}{page-1}".strip()
-        buttons.append(InlineKeyboardButton("⬅️", callback_data=f"nlpage_{prev_command}"))
-    
-    buttons.append(InlineKeyboardButton(f"{page}/{total_pages}", callback_data="noop"))
-    
-    if page < total_pages:
-        next_command = f"{param_str}{page+1}".strip()
-        buttons.append(InlineKeyboardButton("➡️", callback_data=f"nlpage_{next_command}"))
-    
-    keyboard.append(buttons)
-    return InlineKeyboardMarkup(keyboard)
 
 def format_parsed_data(parsed_data: dict) -> str:
     """格式化解析后的查询数据"""
@@ -373,6 +353,7 @@ def handle_nl_search(update: Update, context: CallbackContext):
             if saved_query.get('keywords'):
                 saved_query['keywords'] = [k.strip() for k in saved_query['keywords']]
             
+            # 保存查询数据和当前群组ID到用户数据中
             context.user_data['last_nl_query'] = saved_query
             context.user_data['last_chat_id'] = current_chat_id
         except Exception as e:
@@ -385,11 +366,10 @@ def handle_nl_search(update: Update, context: CallbackContext):
         # 执行搜索
         logging.info("Executing database search")
         messages, count = search_messages_with_parsed_data(saved_query, filter_chats, session, page=1)
-        total_pages = math.ceil(count / 25)
+        total_pages = math.ceil(count / SEARCH_PAGE_SIZE)
         logging.info(f"Found {count} messages")
         
-        # 使用现有的format_search_results函数格式化结果
-        from .msg_search import format_search_results
+        # 格式化结果
         result_text = format_parsed_data(saved_query) + format_search_results(messages, 1, count)
         
         # 发送结果
@@ -397,7 +377,7 @@ def handle_nl_search(update: Update, context: CallbackContext):
             result_text,
             parse_mode='Markdown',
             disable_web_page_preview=True,
-            reply_markup=build_nl_keyboard(1, total_pages, saved_query)
+            reply_markup=build_search_keyboard(1, total_pages, "nlsearch", saved_query)
         )
         logging.info("Search results sent successfully")
         return sent_message
@@ -413,122 +393,6 @@ def handle_nl_search(update: Update, context: CallbackContext):
         if 'session' in locals():
             session.close()
 
-def handle_nl_page_callback(update: Update, context: CallbackContext):
-    """处理翻页回调"""
-    query = update.callback_query
-    logging.info("Processing page callback")
-    
-    if query.data == "noop":
-        query.answer()
-        return
-    
-    try:
-        # 解析回调数据
-        _, callback_query = query.data.split('_', 1)
-        
-        # 解析查询参数
-        user = None
-        keywords = []
-        page = 1
-        
-        # 分割查询参数
-        parts = callback_query.split()
-        if parts:
-            # 最后一个参数是页码
-            if parts[-1].isdigit():
-                page = int(parts[-1])
-                parts = parts[:-1]
-            
-            # 检查是否有用户参数
-            if parts and parts[0].startswith('@'):
-                user = parts[0][1:]  # 去掉@前缀
-                parts = parts[1:]
-            
-            # 剩余的都是关键词
-            keywords = parts if parts else None
-        
-        # 获取当前用户和群组信息
-        from_user_id = update.effective_user.id
-        current_chat_id = update.effective_message.chat_id
-        
-        # 检查是否是原始搜索的群组
-        original_chat_id = context.user_data.get('last_chat_id')
-        if original_chat_id != current_chat_id:
-            query.answer(safe_translate("Please use the search command in the original group"), show_alert=True)
-            return
-        
-        session = DBSession()
-        
-        # 检查群组和用户权限
-        try:
-            chat_member = context.bot.get_chat_member(
-                chat_id=current_chat_id, 
-                user_id=from_user_id
-            )
-            if chat_member.status in ['left', 'kicked']:
-                query.answer(safe_translate("You are no longer a member of this group"), show_alert=True)
-                return
-        except telegram.error.BadRequest as e:
-            logging.error(f"获取群组 {current_chat_id} 成员信息失败: {str(e)}")
-            query.answer(safe_translate("Failed to verify your group membership"), show_alert=True)
-            return
-        
-        # 获取群组信息
-        current_chat = session.query(Chat).filter_by(id=current_chat_id).first()
-        if not current_chat or not current_chat.enable:
-            query.answer(safe_translate("Bot is no longer enabled in this group"), show_alert=True)
-            return
-        
-        # 只搜索当前群组
-        filter_chats = [(current_chat_id, current_chat.title)]
-        
-        # 构建查询参数
-        search_params = {
-            'user': user,
-            'keywords': keywords
-        }
-        
-        # 从原始查询中获取时间范围和群组过滤
-        last_query = context.user_data.get('last_nl_query', {})
-        if last_query.get('time_range'):
-            search_params['time_range'] = last_query['time_range']
-        if last_query.get('chat'):
-            search_params['chat'] = last_query['chat']
-            
-        logging.info(f"Executing search with params: {search_params}")
-        messages, count = search_messages_with_parsed_data(search_params, filter_chats, session, page=page)
-        
-        if count == 0:
-            query.answer(safe_translate("No messages found matching your criteria"), show_alert=True)
-            return
-            
-        total_pages = math.ceil(count / 25)
-        
-        if page > total_pages:
-            query.answer(safe_translate("Already at the last page"), show_alert=True)
-            return
-        
-        # 格式化结果
-        from .msg_search import format_search_results
-        result_text = format_parsed_data(search_params) + format_search_results(messages, page, count)
-        
-        # 更新消息
-        query.edit_message_text(
-            result_text,
-            parse_mode='Markdown',
-            disable_web_page_preview=True,
-            reply_markup=build_nl_keyboard(page, total_pages, search_params)
-        )
-        
-    except Exception as e:
-        logging.error(f"Error handling page callback: {str(e)}", exc_info=True)
-        query.answer(safe_translate("Error processing page request, please try again"), show_alert=True)
-    finally:
-        if 'session' in locals():
-            session.close()
-    
-    query.answer()
-
 # 导出handlers
 nl_search_handler = CommandHandler('nlsearch', handle_nl_search)
-nl_page_handler = CallbackQueryHandler(handle_nl_page_callback, pattern=r'^nlpage_') 
+nl_page_handler = CallbackQueryHandler(handle_search_page_callback, pattern=r'^search\|nlsearch\|') 
