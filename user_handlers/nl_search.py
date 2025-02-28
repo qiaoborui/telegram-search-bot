@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import logging
 import pytz
 import httpx
+import telegram
 import math
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, CommandHandler, CallbackQueryHandler

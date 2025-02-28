@@ -7,7 +7,7 @@ from telegram import InlineQueryResultArticle, InputTextMessageContent, Update, 
 from telegram.ext import InlineQueryHandler, CommandHandler, CallbackQueryHandler, CallbackContext
 from database import User, Message, Chat, DBSession
 from sqlalchemy import and_, or_
-
+import telegram
 from utils import get_filter_chats, is_userbot_mode, get_text_func, auto_delete
 from .search_common import (
     build_search_keyboard, 
