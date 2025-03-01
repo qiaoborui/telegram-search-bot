@@ -107,6 +107,20 @@
         margin-bottom: 5px;
       }
 
+      /* Add responsive font sizes for large numbers */
+      .stat-number.large {
+        font-size: 22px;
+      }
+
+      @media (max-width: 400px) {
+        .stat-number {
+          font-size: 24px;
+        }
+        .stat-number.large {
+          font-size: 18px;
+        }
+      }
+
       .stat-label {
         font-size: 14px;
         color: var(--tg-theme-hint-color);
@@ -138,6 +152,7 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         max-width: 70%;
+        color: var(--tg-theme-text-color); /* Ensure text has good contrast */
       }
 
       .user-count {
@@ -373,6 +388,14 @@
         </div>
       </div>
 
+      <!-- 活跃用户 -->
+      <div class="card top-users-card">
+        <div class="section-title">
+          <i class="bi bi-people"></i> 活跃用户排行
+        </div>
+        <div id="top-users-list"></div>
+      </div>
+
       <!-- 消息类型 -->
       <div class="card message-types-card">
         <div class="section-title">
@@ -405,14 +428,6 @@
         <div class="chart-container">
           <canvas id="time-chart"></canvas>
         </div>
-      </div>
-
-      <!-- 活跃用户 -->
-      <div class="card top-users-card">
-        <div class="section-title">
-          <i class="bi bi-people"></i> 活跃用户排行
-        </div>
-        <div id="top-users-list"></div>
       </div>
     </div>
 
@@ -548,13 +563,22 @@
             // 设置启用状态
             document.getElementById("status-toggle").checked = data.enable;
 
-            // 设置统计数字
-            document.getElementById("total-messages").textContent =
-              data.total_messages.toLocaleString();
-            document.getElementById("total-users").textContent =
-              data.total_users.toLocaleString();
-            document.getElementById("recent-messages").textContent =
+            // 设置统计数字并调整大数字的字体大小
+            const totalMessagesEl = document.getElementById("total-messages");
+            totalMessagesEl.textContent = data.total_messages.toLocaleString();
+            if (data.total_messages > 10000) {
+              totalMessagesEl.classList.add("large");
+            }
+
+            const totalUsersEl = document.getElementById("total-users");
+            totalUsersEl.textContent = data.total_users.toLocaleString();
+
+            const recentMessagesEl = document.getElementById("recent-messages");
+            recentMessagesEl.textContent =
               data.recent_messages.toLocaleString();
+            if (data.recent_messages > 10000) {
+              recentMessagesEl.classList.add("large");
+            }
 
             // 渲染消息类型图表
             const messageTypesArray = Object.entries(data.message_types).map(
