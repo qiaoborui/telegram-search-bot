@@ -323,6 +323,70 @@
         color: var(--tg-theme-hint-color);
         margin-top: 4px;
       }
+
+      .chat-list-container {
+        margin-top: 20px;
+      }
+
+      .chat-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        border-radius: 10px;
+        background-color: var(--tg-theme-secondary-bg-color);
+        margin-bottom: 10px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .chat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        cursor: pointer;
+      }
+
+      .chat-card:active {
+        transform: translateY(0);
+        opacity: 0.8;
+      }
+
+      .chat-info {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .chat-title-list {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 5px;
+      }
+
+      .chat-message-count {
+        font-size: 14px;
+        color: var(--tg-theme-hint-color);
+      }
+
+      .chat-arrow {
+        color: var(--tg-theme-hint-color);
+        font-size: 20px;
+      }
+
+      .section-header {
+        margin-bottom: 15px;
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      .no-chats-message {
+        text-align: center;
+        color: var(--tg-theme-hint-color);
+        font-style: italic;
+        padding: 20px;
+      }
+
+      .chat-section {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -340,6 +404,19 @@
       <div class="error-title">出错了</div>
       <div id="error-message" class="error-message">
         无法加载数据，请稍后再试。
+      </div>
+    </div>
+
+    <!-- 群组选择 -->
+    <div id="chat-selection" class="container" style="display: none">
+      <div class="stats-header">
+        <h1 class="chat-title">选择群组</h1>
+      </div>
+      <div class="section-header">
+        <i class="bi bi-chat-left-text"></i> 可用的群组
+      </div>
+      <div id="chat-list" class="chat-list-container">
+        <!-- 将由JavaScript填充 -->
       </div>
     </div>
 
@@ -474,7 +551,92 @@
         // 显示加载中
         document.getElementById("loading").style.display = "flex";
         document.getElementById("content").style.display = "none";
+        document.getElementById("chat-selection").style.display = "none";
         document.getElementById("error").style.display = "none";
+
+        // 获取所有可用群组
+        async function fetchChats() {
+          try {
+            // 获取initData
+            const initData = tg.initData;
+            console.log("initData长度:", initData.length);
+
+            // 构建API URL
+            let apiUrl = `/api/chats?initData=${encodeURIComponent(initData)}`;
+            console.log("请求API URL:", apiUrl);
+
+            // 发送请求
+            const response = await fetch(apiUrl);
+            const chats = await response.json();
+            console.log("API返回数据:", chats);
+
+            if (response.ok) {
+              displayChatList(chats);
+            } else {
+              // 请求失败，显示错误信息
+              console.error("API请求失败:", chats);
+              showError(
+                chats.error ||
+                  `获取群组列表失败 (HTTP ${response.status}): ${JSON.stringify(
+                    chats
+                  )}`
+              );
+            }
+          } catch (error) {
+            console.error("获取群组列表时出错:", error);
+            showError(`获取群组列表时出错: ${error.message || error}`);
+          }
+        }
+
+        // 显示群组列表
+        function displayChatList(chats) {
+          // 隐藏加载中，显示群组选择
+          document.getElementById("loading").style.display = "none";
+          document.getElementById("chat-selection").style.display = "block";
+
+          const chatListContainer = document.getElementById("chat-list");
+          chatListContainer.innerHTML = "";
+
+          if (chats.length === 0) {
+            // 没有可用的群组
+            chatListContainer.innerHTML = `
+              <div class="no-chats-message">
+                没有可用的群组。请先在群组中添加机器人并启用消息存储。
+              </div>
+            `;
+            return;
+          }
+
+          chats.forEach((chat) => {
+            const chatCard = document.createElement("div");
+            chatCard.className = "chat-card";
+            chatCard.onclick = () => selectChat(chat.id);
+
+            chatCard.innerHTML = `
+              <div class="chat-info">
+                <div class="chat-title-list">${chat.title}</div>
+                <div class="chat-message-count">${chat.message_count.toLocaleString()} 条消息</div>
+              </div>
+              <div class="chat-arrow">
+                <i class="bi bi-chevron-right"></i>
+              </div>
+            `;
+
+            chatListContainer.appendChild(chatCard);
+          });
+        }
+
+        // 选择群组
+        function selectChat(chatId) {
+          console.log("选择群组:", chatId);
+
+          // 显示加载中
+          document.getElementById("loading").style.display = "flex";
+          document.getElementById("chat-selection").style.display = "none";
+
+          // 重新加载页面，带上选中的群组ID
+          window.location.href = `/?chat_id=${chatId}`;
+        }
 
         // 获取统计数据
         async function fetchStats() {
@@ -486,7 +648,9 @@
             // 从URL参数中获取群组ID
             const urlParams = new URLSearchParams(window.location.search);
             const startapp = urlParams.get("startapp");
+            const chatId = urlParams.get("chat_id");
             console.log("URL startapp参数:", startapp);
+            console.log("URL chat_id参数:", chatId);
 
             // 构建API URL
             let apiUrl = `/api/stats?initData=${encodeURIComponent(initData)}`;
@@ -494,6 +658,11 @@
             // 如果URL中有startapp参数，添加到API请求中
             if (startapp) {
               apiUrl += `&startapp=${encodeURIComponent(startapp)}`;
+            }
+
+            // 如果URL中有chat_id参数，添加到API请求中
+            if (chatId) {
+              apiUrl += `&chat_id=${encodeURIComponent(chatId)}`;
             }
 
             console.log("请求API URL:", apiUrl);
@@ -504,16 +673,23 @@
             console.log("API返回数据:", data);
 
             if (response.ok) {
-              // 请求成功，显示统计数据
-              try {
-                displayStats(data);
-              } catch (displayError) {
-                console.error("显示数据时出错:", displayError);
-                showError(
-                  `显示数据时出错: ${
-                    displayError.message
-                  }\n\n数据内容: ${JSON.stringify(data, null, 2)}`
-                );
+              // 请求成功
+              if (data.no_chat_id) {
+                // 没有群组ID，显示群组选择
+                console.log("未提供群组ID，显示群组选择界面");
+                fetchChats();
+              } else {
+                // 有群组ID，显示统计数据
+                try {
+                  displayStats(data);
+                } catch (displayError) {
+                  console.error("显示数据时出错:", displayError);
+                  showError(
+                    `显示数据时出错: ${
+                      displayError.message
+                    }\n\n数据内容: ${JSON.stringify(data, null, 2)}`
+                  );
+                }
               }
             } else {
               // 请求失败，显示错误信息
@@ -562,6 +738,9 @@
 
             // 设置启用状态
             document.getElementById("status-toggle").checked = data.enable;
+
+            // 存储chat_id，供后续使用
+            window.currentChatId = data.chat_id;
 
             // 设置统计数字并调整大数字的字体大小
             const totalMessagesEl = document.getElementById("total-messages");
@@ -787,7 +966,9 @@
             // 从URL参数中获取群组ID
             const urlParams = new URLSearchParams(window.location.search);
             const startapp = urlParams.get("startapp");
+            const chatId = urlParams.get("chat_id") || window.currentChatId;
             console.log("URL startapp参数:", startapp);
+            console.log("使用的chat_id参数:", chatId);
 
             // 构建请求数据
             const formData = new FormData();
@@ -797,6 +978,11 @@
             // 如果URL中有startapp参数，添加到请求中
             if (startapp) {
               formData.append("startapp", startapp);
+            }
+
+            // 如果有chat_id，添加到请求中
+            if (chatId) {
+              formData.append("chat_id", chatId);
             }
 
             // 发送请求

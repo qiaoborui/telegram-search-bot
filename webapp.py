@@ -218,6 +218,34 @@ def extract_chat_id_from_startapp(startapp):
     
     return None
 
+def get_user_chats():
+    """获取数据库中的所有群组"""
+    session = DBSession()
+    try:
+        # 查询所有启用的群组
+        chats = session.query(Chat).filter(Chat.enable == True).all()
+        
+        result = []
+        for chat in chats:
+            # 获取每个群组的基本信息和消息数量
+            message_count = session.query(func.count(Message.id)).filter(Message.from_chat == chat.id).scalar() or 0
+            
+            result.append({
+                'id': chat.id,
+                'title': chat.title,
+                'message_count': message_count
+            })
+        
+        # 按消息数量降序排序
+        result.sort(key=lambda x: x['message_count'], reverse=True)
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error getting user chats: {str(e)}")
+        return []
+    finally:
+        session.close()
+
 @app.route('/')
 def index():
     """主页面，加载Telegram Web App"""
@@ -253,20 +281,28 @@ def get_stats():
         if not startapp:
             # 如果URL参数中没有，则从initData中获取
             startapp = data.get('start_param')
-        
-        logger.info(f"Raw startapp parameter: {startapp}")
-        
-        chat_id = extract_chat_id_from_startapp(startapp)
+            
+        # 从URL参数中直接获取群组ID（用于从选择页面跳转）
+        selected_chat_id = request.args.get('chat_id')
+        if selected_chat_id:
+            try:
+                chat_id = int(selected_chat_id)
+                logger.info(f"Using chat_id from URL parameter: {chat_id}")
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid chat_id from URL parameter: {selected_chat_id}")
+                chat_id = None
+        else:
+            logger.info(f"Raw startapp parameter: {startapp}")
+            chat_id = extract_chat_id_from_startapp(startapp)
         
         if not chat_id:
-            logger.warning("No chat_id found in startapp parameter")
+            logger.warning("No chat_id found in parameters, returning available chats")
+            
+            # 没有指定群组ID，返回特殊标记，前端会显示选择界面
             return jsonify({
-                'error': '无法确定群组ID。请使用 /setting 命令获取包含群组ID的链接。',
-                'details': {
-                    'startapp_present': bool(startapp),
-                    'startapp_value': startapp
-                }
-            }), 400
+                'no_chat_id': True,
+                'message': '请从下方选择一个群组查看统计数据'
+            })
         
         logger.info(f"Processed request data: user_id={user_data.get('id')}, chat_id={chat_id}")
         
@@ -325,24 +361,36 @@ def toggle_status():
         enable = request.form.get('enable') == 'true'
         logger.info(f"Toggle status request: enable={enable}")
         
-        # 从startapp参数中获取群组ID
-        # 首先尝试从表单参数中获取
-        startapp = request.form.get('startapp')
-        if not startapp:
-            # 如果表单参数中没有，则从initData中获取
-            startapp = data.get('start_param')
-        
-        logger.info(f"Raw startapp parameter: {startapp}")
-        
-        chat_id = extract_chat_id_from_startapp(startapp)
+        # 直接从表单获取chat_id
+        form_chat_id = request.form.get('chat_id')
+        if form_chat_id:
+            try:
+                chat_id = int(form_chat_id)
+                logger.info(f"Using chat_id from form parameter: {chat_id}")
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid chat_id from form parameter: {form_chat_id}")
+                chat_id = None
+        else:
+            # 从startapp参数中获取群组ID
+            # 首先尝试从表单参数中获取
+            startapp = request.form.get('startapp')
+            if not startapp:
+                # 如果表单参数中没有，则从initData中获取
+                startapp = data.get('start_param')
+            
+            logger.info(f"Raw startapp parameter: {startapp}")
+            
+            chat_id = extract_chat_id_from_startapp(startapp)
         
         if not chat_id:
-            logger.warning("No chat_id found in startapp parameter")
+            logger.warning("No chat_id found in parameters")
             return jsonify({
-                'error': '无法确定群组ID。请使用 /setting 命令获取包含群组ID的链接。',
+                'error': '无法确定群组ID。请指定一个有效的群组。',
                 'details': {
-                    'startapp_present': bool(startapp),
-                    'startapp_value': startapp
+                    'startapp_present': bool(startapp) if 'startapp' in locals() else False,
+                    'startapp_value': startapp if 'startapp' in locals() else None,
+                    'form_chat_id_present': bool(form_chat_id),
+                    'form_chat_id_value': form_chat_id
                 }
             }), 400
         
@@ -447,6 +495,37 @@ def debug_info():
     }
     
     return jsonify(debug_info)
+
+@app.route('/api/chats')
+def list_chats():
+    """获取用户可访问的群组列表"""
+    # 获取并验证Telegram的initData
+    init_data = request.args.get('initData')
+    
+    logger.info(f"Received request to /api/chats with initData length: {len(init_data) if init_data else 0}")
+    
+    data = verify_telegram_data(init_data)
+    
+    if not data:
+        logger.warning("Authentication failed for /api/chats request")
+        return jsonify({'error': 'Invalid authentication data'}), 403
+    
+    # 解析用户数据
+    try:
+        user_str = data.get('user', '{}')
+        # user_str是已经URL解码过的，但Telegram在initData中嵌套编码，所以可能需要额外解码
+        if user_str.startswith('%'):
+            user_str = urllib.parse.unquote(user_str)
+        user_data = json.loads(user_str)
+        logger.info(f"User data: {user_data}")
+        
+        # 获取所有可访问的群组
+        chats = get_user_chats()
+        
+        return jsonify(chats)
+    except Exception as e:
+        logger.error(f"Error processing request: {str(e)}")
+        return jsonify({'error': f'处理请求时出错: {str(e)}'}), 400
 
 if __name__ == '__main__':
     # 创建必要的目录
