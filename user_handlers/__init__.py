@@ -7,5 +7,6 @@ from . import (
     msg_search,
     msg_store,
     nl_search,
-    search_common
+    search_common,
+    stats_command
 ) 

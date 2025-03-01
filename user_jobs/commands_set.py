@@ -14,5 +14,6 @@ def set_bot_commands(context: CallbackContext):
         BotCommand('help', _('Help')),
         BotCommand('search', _('Search messages')),
         BotCommand('nlsearch', _('Natural language search')),
+        BotCommand('stats', _('Show statistics')),
     ]
     context.bot.set_my_commands(commands)
