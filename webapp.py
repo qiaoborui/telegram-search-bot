@@ -197,35 +197,18 @@ def extract_chat_id_from_startapp(startapp):
     
     logger.info(f"Trying to extract chat_id from startapp: {startapp}")
     
-    # 使用正则表达式匹配所有可能的格式
-    # 1. chat-1234567890 (带连字符)
-    # 2. chat_-1234567890 (带下划线)
-    # 3. chat1234567890 (直接跟数字)
-    match = re.search(r'chat([-_])?(-?\d+)', startapp)
-    if match:
+    # 简化逻辑：直接检查字符串是否以"chat"开头
+    if startapp.startswith('chat'):
         try:
-            # 获取匹配到的数字部分
-            chat_id = int(match.group(2))
+            # 直接获取"chat"后面的所有字符，并转换为整数
+            chat_id_str = startapp[4:]  # 跳过前4个字符 "chat"
+            chat_id = int(chat_id_str)
             logger.info(f"Extracted chat_id from startapp: {chat_id}")
             return chat_id
         except (ValueError, TypeError) as e:
-            logger.warning(f"Failed to convert extracted chat_id to int: {match.group(2)}, error: {e}")
-    
-    # 如果正则表达式匹配失败，尝试直接提取数字部分
-    try:
-        # 移除所有非数字字符（保留负号）
-        numeric_part = re.sub(r'[^\d-]', '', startapp)
-        if numeric_part.startswith('-'):
-            # 如果是负数，保留负号
-            chat_id = int(numeric_part)
-        else:
-            # 如果不是负数，可能需要添加负号（群组ID通常为负数）
-            chat_id = -int(numeric_part)
-        
-        logger.info(f"Extracted chat_id from startapp using numeric extraction: {chat_id}")
-        return chat_id
-    except (ValueError, TypeError) as e:
-        logger.warning(f"Failed to extract numeric part from startapp: {startapp}, error: {e}")
+            logger.warning(f"Failed to convert extracted chat_id to int: {startapp[4:]}, error: {e}")
+    else:
+        logger.warning(f"startapp doesn't start with 'chat': {startapp}")
     
     return None
 
