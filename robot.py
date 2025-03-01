@@ -12,7 +12,8 @@ from user_handlers import (
     msg_search,
     msg_store,
     nl_search,
-    stats_command
+    stats_command,
+    setting_command
 )
 from user_jobs.commands_set import set_bot_commands
 from utils import get_text_func
@@ -33,6 +34,7 @@ def setup_handlers(dispatcher):
     dispatcher.add_handler(chat_delete.handler)
     dispatcher.add_handler(bot_help.handler)
     dispatcher.add_handler(chatid_get.handler)
+    dispatcher.add_handler(setting_command.handler)
     
     # Search handlers
     dispatcher.add_handler(msg_search.handler)

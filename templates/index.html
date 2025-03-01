@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>群组设置</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css"
+    />
+    <style>
+      :root {
+        --tg-theme-bg-color: #ffffff;
+        --tg-theme-text-color: #222222;
+        --tg-theme-hint-color: #999999;
+        --tg-theme-link-color: #2678b6;
+        --tg-theme-button-color: #40a7e3;
+        --tg-theme-button-text-color: #ffffff;
+        --tg-theme-secondary-bg-color: #f0f0f0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: var(--tg-theme-bg-color);
+        color: var(--tg-theme-text-color);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .container {
+        padding: 16px;
+        flex: 1;
+      }
+
+      .card {
+        background-color: var(--tg-theme-secondary-bg-color);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        border: none;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      }
+
+      .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: var(--tg-theme-text-color);
+      }
+
+      .stats-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+
+      .chat-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .chart-container {
+        height: 250px;
+        margin-top: 10px;
+        margin-bottom: 10px;
+      }
+
+      .stat-card {
+        text-align: center;
+        padding: 15px;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        height: 100%;
+      }
+
+      .stat-number {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 5px;
+      }
+
+      .stat-label {
+        font-size: 14px;
+        color: var(--tg-theme-hint-color);
+      }
+
+      .message-types-card {
+        height: 100%;
+      }
+
+      .top-users-card {
+        margin-top: 16px;
+      }
+
+      .user-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        align-items: center;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      }
+
+      .user-item:last-child {
+        border-bottom: none;
+      }
+
+      .user-name {
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 70%;
+      }
+
+      .user-count {
+        font-weight: 600;
+        color: var(--tg-theme-button-color);
+      }
+
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 34px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: var(--tg-theme-button-color);
+      }
+
+      input:focus + .slider {
+        box-shadow: 0 0 1px var(--tg-theme-button-color);
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(26px);
+      }
+
+      .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+
+      .loading-spinner {
+        border: 5px solid rgba(0, 0, 0, 0.1);
+        border-top: 5px solid var(--tg-theme-button-color);
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Card-specific themes */
+      .total-messages {
+        background-color: rgba(64, 167, 227, 0.1);
+        color: #40a7e3;
+      }
+
+      .total-users {
+        background-color: rgba(76, 175, 80, 0.1);
+        color: #4caf50;
+      }
+
+      .recent-messages {
+        background-color: rgba(255, 152, 0, 0.1);
+        color: #ff9800;
+      }
+
+      .time-chart-tabs {
+        display: flex;
+        margin-bottom: 15px;
+      }
+
+      .time-chart-tab {
+        padding: 8px 16px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-right: 10px;
+        font-weight: 500;
+      }
+
+      .time-chart-tab.active {
+        border-bottom: 2px solid var(--tg-theme-button-color);
+        color: var(--tg-theme-button-color);
+      }
+
+      .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        text-align: center;
+        padding: 0 20px;
+      }
+
+      .error-icon {
+        font-size: 48px;
+        color: #ff5252;
+        margin-bottom: 20px;
+      }
+
+      .error-title {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      .error-message {
+        font-size: 16px;
+        color: var(--tg-theme-hint-color);
+        margin-bottom: 20px;
+      }
+
+      .settings-card {
+        margin-top: 16px;
+      }
+
+      .setting-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        align-items: center;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      }
+
+      .setting-item:last-child {
+        border-bottom: none;
+      }
+
+      .setting-label {
+        font-weight: 500;
+      }
+
+      .setting-description {
+        font-size: 14px;
+        color: var(--tg-theme-hint-color);
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 加载中 -->
+    <div id="loading" class="loading-container">
+      <div class="loading-spinner"></div>
+      <div>加载中...</div>
+    </div>
+
+    <!-- 错误信息 -->
+    <div id="error" class="error-container" style="display: none">
+      <div class="error-icon">
+        <i class="bi bi-exclamation-circle"></i>
+      </div>
+      <div class="error-title">出错了</div>
+      <div id="error-message" class="error-message">
+        无法加载数据，请稍后再试。
+      </div>
+    </div>
+
+    <!-- 内容 -->
+    <div id="content" class="container" style="display: none">
+      <div class="stats-header">
+        <h1 id="chat-title" class="chat-title">群组统计</h1>
+      </div>
+
+      <!-- 设置卡片 -->
+      <div class="card settings-card">
+        <div class="section-title"><i class="bi bi-gear"></i> 设置</div>
+        <div class="setting-item">
+          <div>
+            <div class="setting-label">启用消息存储</div>
+            <div class="setting-description">
+              允许机器人存储群组消息用于搜索和统计
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="status-toggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 统计概览 -->
+      <div class="row">
+        <div class="col-4">
+          <div class="stat-card total-messages">
+            <div class="stat-number" id="total-messages">0</div>
+            <div class="stat-label">总消息数</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="stat-card total-users">
+            <div class="stat-number" id="total-users">0</div>
+            <div class="stat-label">活跃用户</div>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="stat-card recent-messages">
+            <div class="stat-number" id="recent-messages">0</div>
+            <div class="stat-label">近7天消息</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 消息类型 -->
+      <div class="card message-types-card">
+        <div class="section-title">
+          <i class="bi bi-pie-chart"></i> 消息类型分布
+        </div>
+        <div class="chart-container">
+          <canvas id="message-types-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- 时间分布 -->
+      <div class="card">
+        <div class="section-title"><i class="bi bi-clock"></i> 时间分布</div>
+        <div class="time-chart-tabs">
+          <div
+            class="time-chart-tab active"
+            data-tab="hourly"
+            onclick="switchTimeChart('hourly')"
+          >
+            小时
+          </div>
+          <div
+            class="time-chart-tab"
+            data-tab="daily"
+            onclick="switchTimeChart('daily')"
+          >
+            星期
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="time-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- 活跃用户 -->
+      <div class="card top-users-card">
+        <div class="section-title">
+          <i class="bi bi-people"></i> 活跃用户排行
+        </div>
+        <div id="top-users-list"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // 初始化Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        // 设置主题颜色
+        if (tg.colorScheme === "dark") {
+          document.documentElement.style.setProperty(
+            "--tg-theme-bg-color",
+            "#212121"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-theme-text-color",
+            "#ffffff"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-theme-hint-color",
+            "#aaaaaa"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-theme-link-color",
+            "#8cc2e6"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-theme-button-color",
+            "#40a7e3"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-theme-button-text-color",
+            "#ffffff"
+          );
+          document.documentElement.style.setProperty(
+            "--tg-theme-secondary-bg-color",
+            "#333333"
+          );
+        }
+
+        // 显示加载中
+        document.getElementById("loading").style.display = "flex";
+        document.getElementById("content").style.display = "none";
+        document.getElementById("error").style.display = "none";
+
+        // 获取统计数据
+        async function fetchStats() {
+          try {
+            // 获取initData
+            const initData = tg.initData;
+            console.log("initData长度:", initData.length);
+
+            // 从URL参数中获取群组ID
+            const urlParams = new URLSearchParams(window.location.search);
+            const startapp = urlParams.get("startapp");
+            console.log("URL startapp参数:", startapp);
+
+            // 构建API URL
+            let apiUrl = `/api/stats?initData=${encodeURIComponent(initData)}`;
+
+            // 如果URL中有startapp参数，添加到API请求中
+            if (startapp) {
+              apiUrl += `&startapp=${encodeURIComponent(startapp)}`;
+            }
+
+            console.log("请求API URL:", apiUrl);
+
+            // 发送请求
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+
+            if (response.ok) {
+              // 请求成功，显示统计数据
+              displayStats(data);
+            } else {
+              // 请求失败，显示错误信息
+              showError(data.error || "获取统计数据失败");
+            }
+          } catch (error) {
+            console.error("获取统计数据时出错:", error);
+            showError("获取统计数据时出错");
+          }
+        }
+
+        // 显示统计数据
+        function displayStats(data) {
+          // 隐藏加载中，显示内容
+          document.getElementById("loading").style.display = "none";
+          document.getElementById("content").style.display = "block";
+
+          // 设置群组标题
+          document.getElementById("chat-title").textContent =
+            data.chat_title || "群组统计";
+
+          // 设置启用状态
+          document.getElementById("status-toggle").checked = data.enabled;
+
+          // 设置统计数字
+          document.getElementById("total-messages").textContent =
+            data.total_messages.toLocaleString();
+          document.getElementById("total-users").textContent =
+            data.total_users.toLocaleString();
+          document.getElementById("recent-messages").textContent =
+            data.recent_messages.toLocaleString();
+
+          // 渲染消息类型图表
+          renderMessageTypesChart(data.message_types);
+
+          // 渲染时间分布图表
+          renderTimeChart("hourly", data.hourly_distribution);
+
+          // 渲染活跃用户列表
+          renderTopUsersList(data.top_users);
+        }
+
+        // 渲染消息类型图表
+        function renderMessageTypesChart(messageTypes) {
+          const ctx = document
+            .getElementById("message-types-chart")
+            .getContext("2d");
+
+          const labels = messageTypes.map((item) => item.type);
+          const data = messageTypes.map((item) => item.count);
+          const colors = [
+            "#40a7e3",
+            "#4caf50",
+            "#ff9800",
+            "#e91e63",
+            "#9c27b0",
+            "#795548",
+            "#607d8b",
+          ];
+
+          new Chart(ctx, {
+            type: "doughnut",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  data: data,
+                  backgroundColor: colors.slice(0, data.length),
+                  borderWidth: 0,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: "right",
+                  labels: {
+                    color: getComputedStyle(
+                      document.documentElement
+                    ).getPropertyValue("--tg-theme-text-color"),
+                  },
+                },
+              },
+            },
+          });
+        }
+
+        // 渲染时间分布图表
+        function renderTimeChart(type, data) {
+          const ctx = document.getElementById("time-chart").getContext("2d");
+
+          let labels, values;
+
+          if (type === "hourly") {
+            labels = Array.from({ length: 24 }, (_, i) => `${i}时`);
+            values = data;
+          } else {
+            labels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+            values = data;
+          }
+
+          // 清除旧图表
+          if (window.timeChart) {
+            window.timeChart.destroy();
+          }
+
+          window.timeChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "消息数",
+                  data: values,
+                  backgroundColor: "#40a7e3",
+                  borderWidth: 0,
+                  borderRadius: 4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    color: getComputedStyle(
+                      document.documentElement
+                    ).getPropertyValue("--tg-theme-hint-color"),
+                  },
+                  grid: {
+                    color: "rgba(0, 0, 0, 0.05)",
+                  },
+                },
+                x: {
+                  ticks: {
+                    color: getComputedStyle(
+                      document.documentElement
+                    ).getPropertyValue("--tg-theme-hint-color"),
+                  },
+                  grid: {
+                    display: false,
+                  },
+                },
+              },
+              plugins: {
+                legend: {
+                  display: false,
+                },
+              },
+            },
+          });
+        }
+
+        // 渲染活跃用户列表
+        function renderTopUsersList(users) {
+          const container = document.getElementById("top-users-list");
+          container.innerHTML = "";
+
+          users.forEach((user, index) => {
+            const userItem = document.createElement("div");
+            userItem.className = "user-item";
+
+            const userName = document.createElement("div");
+            userName.className = "user-name";
+            userName.textContent = `${index + 1}. ${user.name}`;
+
+            const userCount = document.createElement("div");
+            userCount.className = "user-count";
+            userCount.textContent = user.count.toLocaleString();
+
+            userItem.appendChild(userName);
+            userItem.appendChild(userCount);
+            container.appendChild(userItem);
+          });
+        }
+
+        // 切换时间图表
+        window.switchTimeChart = function (type) {
+          // 更新标签样式
+          document.querySelectorAll(".time-chart-tab").forEach((tab) => {
+            tab.classList.remove("active");
+          });
+          document
+            .querySelector(`.time-chart-tab[data-tab="${type}"]`)
+            .classList.add("active");
+
+          // 重新渲染图表
+          if (type === "hourly") {
+            renderTimeChart("hourly", window.statsData.hourly_distribution);
+          } else {
+            renderTimeChart("daily", window.statsData.daily_distribution);
+          }
+        };
+
+        // 切换群组状态
+        async function toggleStatus(enable) {
+          try {
+            // 获取initData
+            const initData = tg.initData;
+
+            // 从URL参数中获取群组ID
+            const urlParams = new URLSearchParams(window.location.search);
+            const startapp = urlParams.get("startapp");
+            console.log("URL startapp参数:", startapp);
+
+            // 构建请求数据
+            const formData = new FormData();
+            formData.append("initData", initData);
+            formData.append("enable", enable);
+
+            // 如果URL中有startapp参数，添加到请求中
+            if (startapp) {
+              formData.append("startapp", startapp);
+            }
+
+            // 发送请求
+            const response = await fetch("/api/toggle_status", {
+              method: "POST",
+              body: formData,
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              // 请求成功，显示成功消息
+              tg.showPopup({
+                title: "设置已更新",
+                message: enable ? "已启用消息存储" : "已禁用消息存储",
+                buttons: [{ type: "ok" }],
+              });
+            } else {
+              // 请求失败，显示错误信息
+              tg.showPopup({
+                title: "设置失败",
+                message: data.error || "更新设置失败",
+                buttons: [{ type: "ok" }],
+              });
+            }
+          } catch (error) {
+            console.error("更新设置时出错:", error);
+            tg.showPopup({
+              title: "错误",
+              message: "更新设置时出错",
+              buttons: [{ type: "ok" }],
+            });
+          }
+        }
+
+        // 显示错误信息
+        function showError(message) {
+          document.getElementById("loading").style.display = "none";
+          document.getElementById("content").style.display = "none";
+          document.getElementById("error").style.display = "block";
+          document.getElementById("error-message").textContent = message;
+        }
+
+        // 初始化页面
+        fetchStats();
+
+        // 绑定开关事件
+        document
+          .getElementById("status-toggle")
+          .addEventListener("change", function () {
+            toggleStatus(this.checked);
+          });
+      });
+    </script>
+  </body>
+</html>
