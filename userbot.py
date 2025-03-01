@@ -33,8 +33,8 @@ def insert_message(msg_id, msg_link, msg_text, from_id, from_chat, date):
 def update_message(from_chat, msg_id, msg_text):
     session = DBSession()
     session.query(Message) \
-        .filter(Message.from_chat.is_(from_chat)) \
-        .filter(Message.id.is_(msg_id)) \
+        .filter(Message.from_chat == from_chat) \
+        .filter(Message.id == msg_id) \
         .update({"text": msg_text})
     session.commit()
     session.close()
