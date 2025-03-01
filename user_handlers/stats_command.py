@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import io
 import os
+import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, CallbackContext
 from utils import get_statistics_data, get_text_func, auto_delete
@@ -340,15 +341,41 @@ def build_stats_keyboard():
     
     return InlineKeyboardMarkup(keyboard)
 
+# 设置数据过期时间（秒）
+DATA_EXPIRY_TIME = 3600  # 1小时
+
+def clean_expired_data(context: CallbackContext):
+    """清理过期的统计数据关联"""
+    current_time = time.time()
+    keys_to_delete = []
+    
+    # 查找所有stats_chat_id_开头的键
+    for key, value in context.bot_data.items():
+        if key.startswith('stats_chat_id_'):
+            # 检查时间戳是否存在
+            timestamp_key = f'stats_timestamp_{key[13:]}'
+            if timestamp_key in context.bot_data:
+                # 如果时间戳超过过期时间，则标记为删除
+                if current_time - context.bot_data[timestamp_key] > DATA_EXPIRY_TIME:
+                    keys_to_delete.append(key)
+                    keys_to_delete.append(timestamp_key)
+    
+    # 删除过期的数据
+    for key in keys_to_delete:
+        del context.bot_data[key]
+    
+    if keys_to_delete:
+        logging.info(f"已清理 {len(keys_to_delete) // 2} 条过期的统计数据关联")
+
 @auto_delete(timeout=300)  # 设置5分钟超时
 def handle_stats_command(update: Update, context: CallbackContext):
     """处理 /stats 命令"""
+    # 清理过期数据
+    clean_expired_data(context)
+    
     # 检查是否在群组中
     chat_id = update.effective_chat.id
     is_group = chat_id < 0  # 群组ID为负数
-    
-    # 存储聊天ID以便后续使用
-    context.user_data['stats_chat_id'] = chat_id if is_group else None
     
     # 准备消息文本
     if is_group:
@@ -369,11 +396,17 @@ def handle_stats_command(update: Update, context: CallbackContext):
         reply_markup=build_stats_keyboard()
     )
     
-    # 存储消息ID以便后续更新
-    context.user_data['stats_message_id'] = message.message_id
+    # 存储消息ID和聊天ID，用于后续处理
+    # 使用消息ID作为唯一标识符，避免不同群组之间的混淆
+    message_id = message.message_id
+    context.bot_data[f'stats_chat_id_{message_id}'] = chat_id if is_group else None
+    context.bot_data[f'stats_timestamp_{message_id}'] = time.time()  # 添加时间戳
 
 def handle_stats_callback(update: Update, context: CallbackContext):
     """处理统计回调查询"""
+    # 清理过期数据
+    clean_expired_data(context)
+    
     query = update.callback_query
     query.answer()
     
@@ -384,8 +417,23 @@ def handle_stats_callback(update: Update, context: CallbackContext):
     
     stats_type = callback_data[len(STATS_CALLBACK_PREFIX):]
     
-    # 获取聊天ID（如果在群组中）
-    chat_id = context.user_data.get('stats_chat_id')
+    # 获取原始消息ID
+    original_message_id = query.message.reply_to_message.message_id if query.message.reply_to_message else None
+    current_chat_id = update.effective_chat.id
+    
+    # 如果找不到原始消息ID，则使用当前聊天ID
+    if original_message_id is None:
+        chat_id = current_chat_id if current_chat_id < 0 else None
+    else:
+        # 从bot_data中获取存储的聊天ID
+        chat_id = context.bot_data.get(f'stats_chat_id_{original_message_id}')
+        
+        # 如果找不到存储的聊天ID，则使用当前聊天ID
+        if chat_id is None:
+            chat_id = current_chat_id if current_chat_id < 0 else None
+        # 如果存储的聊天ID与当前聊天ID不同，则使用当前聊天ID（防止串台）
+        elif chat_id != current_chat_id and current_chat_id < 0:
+            chat_id = current_chat_id
     
     # 获取统计数据
     stats = get_statistics_data(chat_id)
@@ -425,11 +473,16 @@ def handle_stats_callback(update: Update, context: CallbackContext):
         caption = f"{caption} - {stats['chat_title']}"
     
     # 发送图表
-    query.message.reply_photo(
+    reply_message = query.message.reply_photo(
         photo=chart_buf,
         caption=caption,
         reply_markup=build_stats_keyboard()
     )
+    
+    # 存储新消息的聊天ID关联
+    if reply_message and reply_message.message_id:
+        context.bot_data[f'stats_chat_id_{reply_message.message_id}'] = chat_id
+        context.bot_data[f'stats_timestamp_{reply_message.message_id}'] = time.time()  # 添加时间戳
 
 # 命令处理器
 handler = CommandHandler('stats', handle_stats_command)
