@@ -151,10 +151,7 @@ def get_filter_chats(user_id):
 
 
 def is_userbot_mode():
-    env = os.getenv("USER_BOT")
-    if not env:
-        return False
-    return os.getenv("USER_BOT")=="1"
+    return False
 
 
 def update_userbot_admin_id(user_id):

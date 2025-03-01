@@ -15,8 +15,7 @@ from user_handlers import (
     stats_command
 )
 from user_jobs.commands_set import set_bot_commands
-from userbot import run_telethon
-from utils import is_userbot_mode, get_text_func
+from utils import get_text_func
 
 logging.basicConfig(format='%(asctime)s - %(threadName)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -57,8 +56,7 @@ def setup_handlers(dispatcher):
     logger.info("Statistics handler registered")
     
     # Message store handler
-    if not is_userbot_mode():
-        dispatcher.add_handler(msg_store.handler)
+    dispatcher.add_handler(msg_store.handler)
     
     
     logger.info("All handlers registered successfully")
@@ -74,12 +72,6 @@ def main():
     # Set bot commands
     job = updater.job_queue
     job.run_once(set_bot_commands, 30)
-
-    # Run userbot if enabled
-    if is_userbot_mode():
-        telethon_thread = Thread(target=run_telethon_thread, name='Thread-userbot')
-        telethon_thread.start()
-        logger.info(_('userbot start...'))
     
     # Start bot
     mode_env = os.getenv("BOT_MODE")
@@ -95,12 +87,6 @@ def main():
     
     logger.info(_('robot start...'))
     updater.idle()
-
-# Telethon thread func
-def run_telethon_thread():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(run_telethon())
 
 if __name__ == '__main__':
     main()

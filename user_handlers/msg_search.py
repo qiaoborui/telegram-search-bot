@@ -8,7 +8,7 @@ from telegram.ext import InlineQueryHandler, CommandHandler, CallbackQueryHandle
 from database import User, Message, Chat, DBSession
 from sqlalchemy import and_, or_
 import telegram
-from utils import get_filter_chats, is_userbot_mode, get_text_func, auto_delete
+from utils import get_text_func, auto_delete
 from .search_common import (
     build_search_keyboard, 
     format_search_results, 
@@ -142,38 +142,34 @@ def inline_caps(update, context):
     if not chats:
         return
 
-    # Userbot mode
-    if is_userbot_mode():
-        filter_chats = get_filter_chats(from_user_id)
-    else:
-        filter_chats = []
-        enabled_chats = [chat for chat in chats if chat.enable]
+    filter_chats = []
+    enabled_chats = [chat for chat in chats if chat.enable]
+    
+    if not enabled_chats:
+        results = [
+            InlineQueryResultArticle(
+                id='no_enabled_chats',
+                title=_('No enabled groups found'),
+                description=_('Please use /start to enable the bot in your group first'),
+                input_message_content=InputTextMessageContent(_('Please use /start to enable the bot in your group first'))
+            )
+        ]
+        context.bot.answer_inline_query(
+            update.inline_query.id, results, cache_time=10)
+        return
         
-        if not enabled_chats:
-            results = [
-                InlineQueryResultArticle(
-                    id='no_enabled_chats',
-                    title=_('No enabled groups found'),
-                    description=_('Please use /start to enable the bot in your group first'),
-                    input_message_content=InputTextMessageContent(_('Please use /start to enable the bot in your group first'))
-                )
-            ]
-            context.bot.answer_inline_query(
-                update.inline_query.id, results, cache_time=10)
-            return
-            
-        for chat in enabled_chats:
-            try:
-                chat_member = context.bot.get_chat_member(
-                    chat_id=chat.id, user_id=from_user_id)
-                if chat_member.status not in ['left', 'kicked']:
-                    filter_chats.append((chat.id, chat.title))
-            except telegram.error.BadRequest as e:
-                logging.error(f"获取群组 {chat.id} 成员信息失败: {str(e)}")
-            except telegram.error.Unauthorized as e:
-                logging.error(f"群组 {chat.id} 未授权: {str(e)}")
-            except Exception as e:
-                logging.error(f"处理群组 {chat.id} 时发生错误: {str(e)}")
+    for chat in enabled_chats:
+        try:
+            chat_member = context.bot.get_chat_member(
+                chat_id=chat.id, user_id=from_user_id)
+            if chat_member.status not in ['left', 'kicked']:
+                filter_chats.append((chat.id, chat.title))
+        except telegram.error.BadRequest as e:
+            logging.error(f"获取群组 {chat.id} 成员信息失败: {str(e)}")
+        except telegram.error.Unauthorized as e:
+            logging.error(f"群组 {chat.id} 未授权: {str(e)}")
+        except Exception as e:
+            logging.error(f"处理群组 {chat.id} 时发生错误: {str(e)}")
 
     query = update.inline_query.query
     user, keywords, page = get_query_matches(query)
