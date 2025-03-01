@@ -84,13 +84,19 @@ def get_chat_statistics(chat_id):
     session = DBSession()
     try:
         # 获取群组信息
+        logger.info(f"Looking for chat with ID: {chat_id}")
         chat = session.query(Chat).filter(Chat.id == chat_id).first()
         if not chat:
+            logger.warning(f"Chat with ID {chat_id} not found in database")
             return None
+        
+        logger.info(f"Found chat: {chat.title}, enabled: {chat.enable}")
         
         # 基本统计
         total_messages = session.query(func.count(Message.id)).filter(Message.from_chat == chat_id).scalar() or 0
         total_users = session.query(func.count(func.distinct(Message.from_id))).filter(Message.from_chat == chat_id).scalar() or 0
+        
+        logger.info(f"Basic stats: total_messages={total_messages}, total_users={total_users}")
         
         # 最近7天消息
         week_ago = datetime.now() - timedelta(days=7)
@@ -264,17 +270,32 @@ def get_stats():
         
         logger.info(f"Processed request data: user_id={user_data.get('id')}, chat_id={chat_id}")
         
-        stats = get_chat_statistics(chat_id)
-        
-        if stats:
-            return jsonify(stats)
-        else:
-            logger.warning(f"No statistics available for chat_id: {chat_id}")
-            return jsonify({'error': '未找到群组或没有可用的统计数据。请确保机器人是群组的成员。'}), 404
+        # 尝试获取群组统计数据
+        try:
+            stats = get_chat_statistics(chat_id)
+            
+            if stats:
+                logger.info(f"Successfully retrieved stats for chat_id: {chat_id}")
+                return jsonify(stats)
+            else:
+                # 检查群组是否存在
+                session = DBSession()
+                chat_exists = session.query(Chat).filter(Chat.id == chat_id).first() is not None
+                session.close()
+                
+                if chat_exists:
+                    logger.warning(f"Chat exists but no statistics available for chat_id: {chat_id}")
+                    return jsonify({'error': '此群组未产生任何消息。请先在群组中使用机器人。'}), 404
+                else:
+                    logger.warning(f"Chat with ID {chat_id} does not exist in database")
+                    return jsonify({'error': '此群组不存在。请确保机器人已被添加到群组并使用 /start 命令激活。'}), 404
+        except Exception as e:
+            logger.error(f"Error getting statistics: {str(e)}")
+            return jsonify({'error': f'获取统计数据时出错: {str(e)}'}), 500
             
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
-        return jsonify({'error': '数据格式无效'}), 400
+        return jsonify({'error': f'处理请求时出错: {str(e)}'}), 400
 
 @app.route('/api/toggle_status', methods=['POST'])
 def toggle_status():
