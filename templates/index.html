@@ -486,164 +486,225 @@
             // 发送请求
             const response = await fetch(apiUrl);
             const data = await response.json();
+            console.log("API返回数据:", data);
 
             if (response.ok) {
               // 请求成功，显示统计数据
-              displayStats(data);
+              try {
+                displayStats(data);
+              } catch (displayError) {
+                console.error("显示数据时出错:", displayError);
+                showError(
+                  `显示数据时出错: ${
+                    displayError.message
+                  }\n\n数据内容: ${JSON.stringify(data, null, 2)}`
+                );
+              }
             } else {
               // 请求失败，显示错误信息
-              showError(data.error || "获取统计数据失败");
+              console.error("API请求失败:", data);
+              showError(
+                data.error ||
+                  `获取统计数据失败 (HTTP ${response.status}): ${JSON.stringify(
+                    data
+                  )}`
+              );
             }
           } catch (error) {
             console.error("获取统计数据时出错:", error);
-            showError("获取统计数据时出错");
+            showError(`获取统计数据时出错: ${error.message || error}`);
           }
         }
 
         // 显示统计数据
         function displayStats(data) {
-          // 隐藏加载中，显示内容
-          document.getElementById("loading").style.display = "none";
-          document.getElementById("content").style.display = "block";
+          console.log("处理数据中:", data);
 
-          // 设置群组标题
-          document.getElementById("chat-title").textContent =
-            data.chat_title || "群组统计";
+          // Store the data for later use
+          window.statsData = data;
 
-          // 设置启用状态
-          document.getElementById("status-toggle").checked = data.enabled;
+          try {
+            // 检查必要的数据字段是否存在
+            if (!data) throw new Error("没有接收到数据");
+            if (!data.total_messages && data.total_messages !== 0)
+              throw new Error("缺少 total_messages 字段");
+            if (!data.total_users && data.total_users !== 0)
+              throw new Error("缺少 total_users 字段");
+            if (!data.recent_messages && data.recent_messages !== 0)
+              throw new Error("缺少 recent_messages 字段");
+            if (!data.message_types) throw new Error("缺少 message_types 字段");
+            if (!data.hourly_stats) throw new Error("缺少 hourly_stats 字段");
+            if (!data.top_users) throw new Error("缺少 top_users 字段");
+            if (!data.weekly_stats) throw new Error("缺少 weekly_stats 字段");
 
-          // 设置统计数字
-          document.getElementById("total-messages").textContent =
-            data.total_messages.toLocaleString();
-          document.getElementById("total-users").textContent =
-            data.total_users.toLocaleString();
-          document.getElementById("recent-messages").textContent =
-            data.recent_messages.toLocaleString();
+            // 隐藏加载中，显示内容
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("content").style.display = "block";
 
-          // 渲染消息类型图表
-          renderMessageTypesChart(data.message_types);
+            // 设置群组标题
+            document.getElementById("chat-title").textContent =
+              data.chat_title || "群组统计";
 
-          // 渲染时间分布图表
-          renderTimeChart("hourly", data.hourly_distribution);
+            // 设置启用状态
+            document.getElementById("status-toggle").checked = data.enable;
 
-          // 渲染活跃用户列表
-          renderTopUsersList(data.top_users);
+            // 设置统计数字
+            document.getElementById("total-messages").textContent =
+              data.total_messages.toLocaleString();
+            document.getElementById("total-users").textContent =
+              data.total_users.toLocaleString();
+            document.getElementById("recent-messages").textContent =
+              data.recent_messages.toLocaleString();
+
+            // 渲染消息类型图表
+            const messageTypesArray = Object.entries(data.message_types).map(
+              ([type, count]) => ({
+                type: type,
+                count: count,
+              })
+            );
+            renderMessageTypesChart(messageTypesArray);
+
+            // 渲染时间分布图表
+            renderTimeChart("hourly", Object.values(data.hourly_stats));
+
+            // 渲染活跃用户列表
+            renderTopUsersList(data.top_users);
+          } catch (error) {
+            console.error("处理数据时出错:", error);
+            showError(
+              `处理数据时出错: ${error.message}\n\n数据内容: ${JSON.stringify(
+                data,
+                null,
+                2
+              )}`
+            );
+          }
         }
 
         // 渲染消息类型图表
         function renderMessageTypesChart(messageTypes) {
-          const ctx = document
-            .getElementById("message-types-chart")
-            .getContext("2d");
+          try {
+            const ctx = document
+              .getElementById("message-types-chart")
+              .getContext("2d");
 
-          const labels = messageTypes.map((item) => item.type);
-          const data = messageTypes.map((item) => item.count);
-          const colors = [
-            "#40a7e3",
-            "#4caf50",
-            "#ff9800",
-            "#e91e63",
-            "#9c27b0",
-            "#795548",
-            "#607d8b",
-          ];
+            const labels = messageTypes.map((item) => item.type);
+            const data = messageTypes.map((item) => item.count);
+            const colors = [
+              "#40a7e3",
+              "#4caf50",
+              "#ff9800",
+              "#e91e63",
+              "#9c27b0",
+              "#795548",
+              "#607d8b",
+            ];
 
-          new Chart(ctx, {
-            type: "doughnut",
-            data: {
-              labels: labels,
-              datasets: [
-                {
-                  data: data,
-                  backgroundColor: colors.slice(0, data.length),
-                  borderWidth: 0,
-                },
-              ],
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: "right",
-                  labels: {
-                    color: getComputedStyle(
-                      document.documentElement
-                    ).getPropertyValue("--tg-theme-text-color"),
+            new Chart(ctx, {
+              type: "doughnut",
+              data: {
+                labels: labels,
+                datasets: [
+                  {
+                    data: data,
+                    backgroundColor: colors.slice(0, data.length),
+                    borderWidth: 0,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: "right",
+                    labels: {
+                      color: getComputedStyle(
+                        document.documentElement
+                      ).getPropertyValue("--tg-theme-text-color"),
+                    },
                   },
                 },
               },
-            },
-          });
+            });
+          } catch (error) {
+            console.error("渲染消息类型图表出错:", error);
+            showError(`渲染消息类型图表出错: ${error.message}`);
+          }
         }
 
         // 渲染时间分布图表
         function renderTimeChart(type, data) {
-          const ctx = document.getElementById("time-chart").getContext("2d");
+          try {
+            const ctx = document.getElementById("time-chart").getContext("2d");
 
-          let labels, values;
+            let labels, values;
 
-          if (type === "hourly") {
-            labels = Array.from({ length: 24 }, (_, i) => `${i}时`);
-            values = data;
-          } else {
-            labels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
-            values = data;
-          }
+            if (type === "hourly") {
+              labels = Array.from({ length: 24 }, (_, i) => `${i}时`);
+              values = data;
+            } else {
+              labels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+              values = data;
+            }
 
-          // 清除旧图表
-          if (window.timeChart) {
-            window.timeChart.destroy();
-          }
+            // 清除旧图表
+            if (window.timeChart) {
+              window.timeChart.destroy();
+            }
 
-          window.timeChart = new Chart(ctx, {
-            type: "bar",
-            data: {
-              labels: labels,
-              datasets: [
-                {
-                  label: "消息数",
-                  data: values,
-                  backgroundColor: "#40a7e3",
-                  borderWidth: 0,
-                  borderRadius: 4,
+            window.timeChart = new Chart(ctx, {
+              type: "bar",
+              data: {
+                labels: labels,
+                datasets: [
+                  {
+                    label: "消息数",
+                    data: values,
+                    backgroundColor: "#40a7e3",
+                    borderWidth: 0,
+                    borderRadius: 4,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      color: getComputedStyle(
+                        document.documentElement
+                      ).getPropertyValue("--tg-theme-hint-color"),
+                    },
+                    grid: {
+                      color: "rgba(0, 0, 0, 0.05)",
+                    },
+                  },
+                  x: {
+                    ticks: {
+                      color: getComputedStyle(
+                        document.documentElement
+                      ).getPropertyValue("--tg-theme-hint-color"),
+                    },
+                    grid: {
+                      display: false,
+                    },
+                  },
                 },
-              ],
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    color: getComputedStyle(
-                      document.documentElement
-                    ).getPropertyValue("--tg-theme-hint-color"),
-                  },
-                  grid: {
-                    color: "rgba(0, 0, 0, 0.05)",
-                  },
-                },
-                x: {
-                  ticks: {
-                    color: getComputedStyle(
-                      document.documentElement
-                    ).getPropertyValue("--tg-theme-hint-color"),
-                  },
-                  grid: {
+                plugins: {
+                  legend: {
                     display: false,
                   },
                 },
               },
-              plugins: {
-                legend: {
-                  display: false,
-                },
-              },
-            },
-          });
+            });
+          } catch (error) {
+            console.error("渲染时间分布图表出错:", error);
+            showError(`渲染时间分布图表出错: ${error.message}`);
+          }
         }
 
         // 渲染活跃用户列表
@@ -679,11 +740,17 @@
             .querySelector(`.time-chart-tab[data-tab="${type}"]`)
             .classList.add("active");
 
-          // 重新渲染图表
+          // 重新渲染图表 (changed property names to match actual data)
           if (type === "hourly") {
-            renderTimeChart("hourly", window.statsData.hourly_distribution);
+            renderTimeChart(
+              "hourly",
+              Object.values(window.statsData.hourly_stats)
+            );
           } else {
-            renderTimeChart("daily", window.statsData.daily_distribution);
+            renderTimeChart(
+              "daily",
+              Object.values(window.statsData.weekly_stats)
+            );
           }
         };
 
@@ -743,10 +810,27 @@
 
         // 显示错误信息
         function showError(message) {
+          console.error("显示错误信息:", message);
           document.getElementById("loading").style.display = "none";
           document.getElementById("content").style.display = "none";
           document.getElementById("error").style.display = "block";
-          document.getElementById("error-message").textContent = message;
+
+          // 格式化显示错误信息
+          const errorMessageEl = document.getElementById("error-message");
+          errorMessageEl.innerHTML = message
+            .replace(/\n/g, "<br>")
+            .replace(/\s{2}/g, "&nbsp;&nbsp;");
+
+          // 如果错误信息过长，添加样式以便于查看
+          if (message.length > 200) {
+            errorMessageEl.style.textAlign = "left";
+            errorMessageEl.style.whiteSpace = "pre-wrap";
+            errorMessageEl.style.maxHeight = "60vh";
+            errorMessageEl.style.overflow = "auto";
+            errorMessageEl.style.padding = "10px";
+            errorMessageEl.style.backgroundColor = "rgba(0,0,0,0.05)";
+            errorMessageEl.style.borderRadius = "5px";
+          }
         }
 
         // 初始化页面
