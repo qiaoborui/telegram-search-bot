@@ -10,11 +10,9 @@ def set_bot_commands(context: CallbackContext):
         BotCommand('start', _('Start bot')),
         BotCommand('stop', _('Stop bot')),
         BotCommand('delete', _('Delete group data')),
-        BotCommand('chatid', _('Get chat id')),
         BotCommand('help', _('Help')),
         BotCommand('search', _('Search messages')),
         BotCommand('nlsearch', _('Natural language search')),
-        BotCommand('stats', _('Show statistics')),
         BotCommand('setting', _('Settings & Statistics')),
     ]
     context.bot.set_my_commands(commands)

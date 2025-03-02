@@ -3,11 +3,9 @@ from . import (
     chat_start,
     chat_stop,
     chat_delete,
-    chatid_get,
     msg_search,
     msg_store,
     nl_search,
     search_common,
-    stats_command,
     setting_command
 ) 

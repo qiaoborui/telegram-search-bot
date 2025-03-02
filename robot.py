@@ -8,11 +8,9 @@ from user_handlers import (
     chat_start, 
     chat_stop, 
     chat_delete, 
-    chatid_get, 
     msg_search,
     msg_store,
     nl_search,
-    stats_command,
     setting_command
 )
 from user_jobs.commands_set import set_bot_commands
@@ -33,7 +31,6 @@ def setup_handlers(dispatcher):
     dispatcher.add_handler(chat_stop.handler)
     dispatcher.add_handler(chat_delete.handler)
     dispatcher.add_handler(bot_help.handler)
-    dispatcher.add_handler(chatid_get.handler)
     dispatcher.add_handler(setting_command.handler)
     
     # Search handlers
@@ -50,12 +47,6 @@ def setup_handlers(dispatcher):
     dispatcher.add_handler(msg_search.callback_handler)
     dispatcher.add_handler(nl_search.nl_page_handler)
     logger.info("Common search callback handler registered")
-    
-    # Statistics handler
-    logger.info("Registering statistics handler...")
-    dispatcher.add_handler(stats_command.handler)
-    dispatcher.add_handler(stats_command.callback_handler)
-    logger.info("Statistics handler registered")
     
     # Message store handler
     dispatcher.add_handler(msg_store.handler)

@@ -483,7 +483,3 @@ def handle_stats_callback(update: Update, context: CallbackContext):
     if reply_message and reply_message.message_id:
         context.bot_data[f'stats_chat_id_{reply_message.message_id}'] = chat_id
         context.bot_data[f'stats_timestamp_{reply_message.message_id}'] = time.time()  # 添加时间戳
-
-# 命令处理器
-handler = CommandHandler('stats', handle_stats_command)
-callback_handler = CallbackQueryHandler(handle_stats_callback, pattern=f"^{STATS_CALLBACK_PREFIX}") 
