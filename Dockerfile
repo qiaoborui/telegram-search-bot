@@ -4,12 +4,15 @@ FROM python:3.9-slim AS builder
 # 设置工作目录
 WORKDIR /build
 
-# 安装构建依赖
+# 安装构建依赖 - 添加更多必要的构建工具
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
+    g++ \
+    make \
     postgresql-client \
     libpq-dev \
+    python3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,8 +22,12 @@ RUN pip install --no-cache-dir --upgrade pip wheel setuptools
 # 只复制requirements.txt以利用缓存
 COPY requirements.txt .
 
-# 安装Python依赖到指定目录
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# 预先安装psycopg2-binary，避免编译原生psycopg2
+RUN pip install --no-cache-dir psycopg2-binary
+
+# 安装Python依赖到指定目录，忽略已安装的psycopg2
+RUN grep -v "psycopg2==" requirements.txt > requirements_filtered.txt && \
+    pip install --no-cache-dir --prefix=/install -r requirements_filtered.txt
 
 # 最终阶段：创建最小运行镜像
 FROM python:3.9-slim
@@ -43,6 +50,9 @@ RUN apt-get update && \
 
 # 从构建阶段复制安装的Python包
 COPY --from=builder /install /usr/local
+
+# 安装psycopg2-binary在最终镜像中
+RUN pip install --no-cache-dir psycopg2-binary
 
 # 复制应用代码
 COPY . /app
