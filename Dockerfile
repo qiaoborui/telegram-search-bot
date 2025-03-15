@@ -54,13 +54,15 @@ COPY --from=builder /install /usr/local
 # 安装psycopg2-binary在最终镜像中
 RUN pip install --no-cache-dir psycopg2-binary
 
-# 复制应用代码
-COPY . /app
+# 复制应用代码 - 只复制必要的文件
+COPY app/ /app/app/
+COPY templates/ /app/templates/
+COPY locale/ /app/locale/
+COPY main.py webapp.py webapp_main.py entrypoint.sh /app/
 
 # 创建必要的目录
 RUN mkdir -p /app/config && \
-    chmod +x /app/entrypoint.sh && \
-    rm -rf extra doc preview README.md LICENSE .gitignore
+    chmod +x /app/entrypoint.sh
 
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1

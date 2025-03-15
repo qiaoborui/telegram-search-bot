@@ -7,7 +7,6 @@
 README.md
 LICENSE
 docs/
-extra/
 preview/
 
 # 缓存和临时文件
@@ -58,4 +57,11 @@ config/*
 tests/
 .pytest_cache/
 .coverage
-htmlcov/ 
+htmlcov/
+
+# 确保不排除核心代码目录
+!app/
+!webapp.py
+!main.py
+!webapp_main.py
+!entrypoint.sh 
