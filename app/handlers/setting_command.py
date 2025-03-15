@@ -1,7 +1,7 @@
 import os
 from telegram.ext import CommandHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from utils import auto_delete
+from app.utils import auto_delete
 
 # Bot username is needed for t.me links
 BOT_USERNAME = os.getenv('BOT_USERNAME', 'kuakuachaichai_bot')

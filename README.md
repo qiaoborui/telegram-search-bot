@@ -7,6 +7,7 @@ A Telegram Bot for searching group chat records by keywords and usernames
 Telegram's built-in search supports only whole sentences for languages like CJK, and does not support word segmentation. This project solves the search problem by storing chat records and performing database queries.
 
 ### Index
+
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -15,6 +16,7 @@ Telegram's built-in search supports only whole sentences for languages like CJK,
 - [License](#license)
 
 ### Features
+
 - Searching group chat messages by multiple keywords (with pagination)
 - Locating message positions
 - Command control with restrictions
@@ -29,6 +31,52 @@ Telegram's built-in search supports only whole sentences for languages like CJK,
 
 Refer to [quick-start.md](docs/en/quick-start.md) for general installation instructions.
 
+#### Docker Installation
+
+您可以使用 Docker 来运行此机器人：
+
+```bash
+# 从Docker Hub拉取镜像
+docker pull yourusername/telegram-search-bot:latest
+
+# 创建配置目录
+mkdir -p config
+
+# 运行容器
+docker run -d \
+  -v $(pwd)/config:/app/config \
+  -e TELEGRAM_BOT_TOKEN=your_token_here \
+  yourusername/telegram-search-bot:latest
+```
+
+或者使用 docker-compose:
+
+```yaml
+version: "3"
+services:
+  telegram-search-bot:
+    image: yourusername/telegram-search-bot:latest
+    volumes:
+      - ./config:/app/config
+    environment:
+      - TELEGRAM_BOT_TOKEN=your_token_here
+```
+
+#### 自动构建
+
+本项目使用 GitHub Actions 自动构建并发布 Docker 镜像。每当推送到主分支或创建新的版本标签时，都会触发自动构建。
+
+要设置自动构建，请在 GitHub 仓库中添加以下密钥：
+
+1. `DOCKER_HUB_USERNAME`: 您的 Docker Hub 用户名
+2. `DOCKER_HUB_TOKEN`: 您的 Docker Hub 访问令牌（在 Docker Hub 的账户设置中创建）
+
+您可以通过以下方式手动触发构建：
+
+1. 在 GitHub 仓库页面点击"Actions"
+2. 选择"构建并发布 Docker 镜像"工作流
+3. 点击"Run workflow"按钮
+
 For advanced usage, see [advanced-use.md](docs/en/advanced-use.md)
 
 ### Usage
@@ -39,17 +87,18 @@ For advanced usage, see [advanced-use.md](docs/en/advanced-use.md)
 
   `@YourBot * 2` Display all message records on page 2.
 
-  `@YourBot weather 3`  Search for message records containing the keyword `weather` and flips to page 3.
+  `@YourBot weather 3` Search for message records containing the keyword `weather` and flips to page 3.
 
   `@mybot @Taosky weather 4` Search for message records containing the keyword "weather" and the group member "Taosky" (full name) and flips to page 4.
 
 - `/help`: Get search help.
 
-- `/chat_id`:  Get the numerical ID of the current chat.
+- `/chat_id`: Get the numerical ID of the current chat.
 
 ### Changes
 
 #### 2024-06-27
+
 - Fix message leak to non group members([#65 by JasonKhew96](https://github.com/Taosky/telegram-search-bot/pull/65))
 
 #### 2024-03-28
@@ -59,7 +108,6 @@ For advanced usage, see [advanced-use.md](docs/en/advanced-use.md)
 #### 2024-03-26
 
 - Give tips when /start failed ([#57](https://github.com/Taosky/telegram-search-bot/issues/57))
-
 
 #### 2023-09-07
 
@@ -94,7 +142,6 @@ For advanced usage, see [advanced-use.md](docs/en/advanced-use.md)
 - Added functionality to search by user
 - Attempted to make documentation clearer
 
-
 <details>
 <summary>more</summary>
 
@@ -120,7 +167,6 @@ For advanced usage, see [advanced-use.md](docs/en/advanced-use.md)
 
 - Support for database synchronization after message editing
 - Fixed some bugs
-
 
 #### 2022-10-24 ([#19](https://github.com/Taosky/telegram-search-bot/pull/19))
 

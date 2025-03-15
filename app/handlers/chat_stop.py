@@ -1,28 +1,25 @@
 from telegram.ext import CommandHandler
-from database import Message, Chat, DBSession
-from utils import check_control_permission, get_text_func
+from app.models import Chat, DBSession
+from app.utils import check_control_permission, get_text_func
 
 _ = get_text_func()
 
 
-def delete_chat_or_do_nothing(chat_id):
+def disbale_chat_or_do_nothing(chat_id):
     session = DBSession()
     target_chat = session.query(Chat).get(chat_id)
-    if target_chat and not target_chat.enable:
-        session.delete(target_chat)
+    if target_chat and target_chat.enable:
+        target_chat.enable = False
+        session.add(target_chat)
         session.commit()
-        related_messages = session.query(
-            Message).filter(Message.from_chat == chat_id)
-        related_messages.delete(synchronize_session=False)
-        session.commit()
-        msg_text = _('messages deleted!')
+        msg_text = _('bot stopped, group messages retained, use /delete to remove')
     else:
-        msg_text = _('not started / not stopped!')
+        msg_text = _('already stopped / not started, use /start to start bot in current group!')
     session.close()
     return msg_text
 
 
-def delete(update, context):
+def stop(update, context):
     from_user_id = update.message.from_user.id
     chat_id = update.effective_chat.id
     chat_member = context.bot.get_chat_member(
@@ -37,8 +34,8 @@ def delete(update, context):
             return
     else:
         return
-    msg_text = delete_chat_or_do_nothing(chat_id)
+    msg_text = disbale_chat_or_do_nothing(chat_id)
     context.bot.send_message(chat_id=update.effective_chat.id, text=msg_text)
 
 
-handler = CommandHandler('delete', delete)
+handler = CommandHandler('stop', stop)

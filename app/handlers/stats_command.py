@@ -6,7 +6,7 @@ import os
 import time
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, CallbackContext
-from utils import get_statistics_data, get_text_func, auto_delete
+from app.utils import get_statistics_data, get_text_func, auto_delete
 import matplotlib
 matplotlib.use('Agg')  # 使用非交互式后端
 

@@ -5,11 +5,11 @@ import logging
 import json
 from telegram import InlineQueryResultArticle, InputTextMessageContent, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import InlineQueryHandler, CommandHandler, CallbackQueryHandler, CallbackContext
-from database import User, Message, Chat, DBSession
+from app.models import User, Message, Chat, DBSession
 from sqlalchemy import and_, or_
 import telegram
-from utils import get_text_func, auto_delete
-from .search_common import (
+from app.utils import get_text_func, auto_delete
+from app.handlers.search_common import (
     build_search_keyboard, 
     format_search_results, 
     get_filter_chats_for_user,

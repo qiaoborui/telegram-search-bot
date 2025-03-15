@@ -1,6 +1,6 @@
 from telegram.ext import CallbackContext
 from telegram import BotCommand
-from utils import get_text_func
+from app.utils import get_text_func
 
 _ = get_text_func()
 

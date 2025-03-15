@@ -1,4 +1,4 @@
-from . import (
+from app.handlers import (
     bot_help,
     chat_start,
     chat_stop,
@@ -6,6 +6,5 @@ from . import (
     msg_search,
     msg_store,
     nl_search,
-    search_common,
     setting_command
 ) 

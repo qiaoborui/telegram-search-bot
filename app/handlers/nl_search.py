@@ -8,10 +8,10 @@ import telegram
 import math
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, CommandHandler, CallbackQueryHandler
-from database import User, Message, Chat, DBSession
+from app.models import User, Message, Chat, DBSession
 from sqlalchemy import and_, or_, func
-from utils import get_filter_chats, get_text_func, auto_delete
-from .search_common import (
+from app.utils import get_filter_chats, get_text_func, auto_delete
+from app.handlers.search_common import (
     build_search_keyboard, 
     format_search_results, 
     get_filter_chats_for_user,
@@ -386,7 +386,7 @@ def handle_nl_search(update: Update, context: CallbackContext):
             logging.warning("Callback data exceeds Telegram's 64 byte limit, will be compressed")
             
             # 压缩查询参数
-            from .search_common import compress_query_params, further_compress_params
+            from app.handlers.search_common import compress_query_params, further_compress_params
             compressed = compress_query_params(saved_query)
             compressed_json = json.dumps(compressed)
             compressed_length = len(f"search|nlsearch|1|{compressed_json}")

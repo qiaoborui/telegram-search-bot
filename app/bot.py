@@ -3,7 +3,7 @@ from threading import Thread
 import asyncio
 import logging
 import os
-from user_handlers import (
+from app.handlers import (
     bot_help, 
     chat_start, 
     chat_stop, 
@@ -13,8 +13,8 @@ from user_handlers import (
     nl_search,
     setting_command
 )
-from user_jobs.commands_set import set_bot_commands
-from utils import get_text_func
+from app.jobs.commands_set import set_bot_commands
+from app.utils import get_text_func
 
 logging.basicConfig(format='%(asctime)s - %(threadName)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -82,5 +82,4 @@ def main():
     updater.idle()
 
 if __name__ == '__main__':
-    main()
-
+    main() 

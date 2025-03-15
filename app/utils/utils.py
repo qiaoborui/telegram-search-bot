@@ -7,7 +7,7 @@ import os
 from threading import Thread
 from datetime import datetime, timedelta
 from sqlalchemy import func
-from database import DBSession, Message, User, Chat
+from app.models import DBSession, Message, User, Chat
 
 CONFIG_FILE = './config/.config.json'
 
@@ -284,4 +284,4 @@ def get_statistics_data(chat_id=None):
     stats['recent_messages'] = base_query.filter(Message.date >= recent_date).count()
     
     session.close()
-    return stats
+    return stats 

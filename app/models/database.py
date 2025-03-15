@@ -75,4 +75,4 @@ class Chat(Base):
     enable = Column(BOOLEAN, index=True)
 
 
-Base.metadata.create_all(engine)
+Base.metadata.create_all(engine) 

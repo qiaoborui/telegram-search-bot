@@ -3,7 +3,7 @@ import json
 import logging
 from flask import Flask, render_template, jsonify, request, Response
 from sqlalchemy import func, desc, extract
-from database import DBSession, Message, User, Chat
+from app.models import DBSession, Message, User, Chat
 from datetime import datetime, timedelta
 import hmac
 import hashlib

@@ -1,5 +1,5 @@
 from telegram.ext import MessageHandler, Filters
-from database import DBSession, Message, User, Chat
+from app.models import DBSession, Message, User, Chat
 
 
 def insert_or_update_user(user_id, fullname, username):

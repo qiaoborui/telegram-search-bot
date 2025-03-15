@@ -7,8 +7,8 @@ import telegram
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
-from database import Chat, DBSession
-from utils import get_text_func, auto_delete
+from app.models import Chat, DBSession
+from app.utils import get_text_func, auto_delete
 
 # Initialize translation function
 _ = get_text_func()
@@ -394,7 +394,7 @@ def handle_search_page_callback(update: Update, context: CallbackContext):
         
         # 根据搜索类型执行不同的搜索
         if search_type == "search":
-            from .msg_search import search_messages
+            from app.handlers.msg_search import search_messages
             messages, count = search_messages(
                 query_params.get('user'), 
                 query_params.get('keywords'), 
@@ -402,7 +402,7 @@ def handle_search_page_callback(update: Update, context: CallbackContext):
                 filter_chats
             )
         elif search_type == "nlsearch":
-            from .nl_search import search_messages_with_parsed_data
+            from app.handlers.nl_search import search_messages_with_parsed_data
             messages, count = search_messages_with_parsed_data(
                 query_params, 
                 filter_chats, 

@@ -1,6 +1,6 @@
 # coding: utf-8
 from telegram.ext import CommandHandler
-from utils import auto_delete, get_bot_user_name, get_text_func
+from app.utils import auto_delete, get_bot_user_name, get_text_func
 
 _ = get_text_func()
 

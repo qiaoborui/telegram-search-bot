@@ -1,8 +1,8 @@
 from telegram.ext import CommandHandler
 import telegram.error
 
-from database import Chat, DBSession
-from utils import check_control_permission, get_text_func
+from app.models import Chat, DBSession
+from app.utils import check_control_permission, get_text_func
 
 _ = get_text_func()
 
