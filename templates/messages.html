@@ -10,31 +10,11 @@
     />
   </head>
   <body class="bg-gray-100">
-    <!-- 群组选择界面 -->
-    <div id="chat-selection" class="container mx-auto px-4 py-8">
-      <div class="bg-white rounded-lg shadow-lg p-6">
-        <h1 class="text-2xl font-bold mb-6">选择群组</h1>
-        <div id="chat-list" class="space-y-4">
-          <!-- 群组列表将通过 JavaScript 动态加载 -->
-        </div>
-      </div>
-    </div>
-
-    <!-- 消息界面 -->
-    <div
-      id="message-view"
-      class="container mx-auto px-4 py-8"
-      style="display: none"
-    >
+    <div class="container mx-auto px-4 py-8">
       <div class="bg-white rounded-lg shadow-lg p-6">
         <div class="flex justify-between items-center mb-6">
           <h1 class="text-2xl font-bold" id="chatTitle">群组消息</h1>
-          <button
-            onclick="showChatSelection()"
-            class="text-blue-500 hover:text-blue-700"
-          >
-            返回群组列表
-          </button>
+          <a href="/" class="text-blue-500 hover:text-blue-700">返回群组列表</a>
         </div>
 
         <!-- 消息列表 -->
@@ -82,58 +62,10 @@
     </div>
 
     <script>
-      let currentChatId = null;
+      // 获取当前群组 ID
+      const urlParams = new URLSearchParams(window.location.search);
+      const chatId = urlParams.get("chat_id");
       let currentPage = 1;
-
-      // 加载群组列表
-      async function loadChats() {
-        try {
-          const response = await fetch("/api/public/chats");
-          const chats = await response.json();
-
-          const chatList = document.getElementById("chat-list");
-          chatList.innerHTML = "";
-
-          chats.forEach((chat) => {
-            const chatDiv = document.createElement("div");
-            chatDiv.className =
-              "bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer";
-            chatDiv.innerHTML = `
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h3 class="font-bold text-lg">${chat.title}</h3>
-                        <p class="text-gray-500 text-sm">${chat.message_count} 条消息</p>
-                    </div>
-                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </div>
-            `;
-            chatDiv.onclick = () => selectChat(chat.id, chat.title);
-            chatList.appendChild(chatDiv);
-          });
-        } catch (error) {
-          console.error("加载群组列表失败:", error);
-          alert("加载群组列表失败");
-        }
-      }
-
-      // 选择群组
-      function selectChat(chatId, chatTitle) {
-        currentChatId = chatId;
-        document.getElementById("chatTitle").textContent = chatTitle;
-        document.getElementById("chat-selection").style.display = "none";
-        document.getElementById("message-view").style.display = "block";
-        loadMessages(1);
-      }
-
-      // 返回群组选择
-      function showChatSelection() {
-        currentChatId = null;
-        document.getElementById("chat-selection").style.display = "block";
-        document.getElementById("message-view").style.display = "none";
-        loadChats();
-      }
 
       // 格式化日期
       function formatDate(isoString) {
@@ -143,12 +75,8 @@
 
       // 加载消息
       async function loadMessages(page = 1) {
-        if (!currentChatId) return;
-
         try {
-          const response = await fetch(
-            `/api/messages/${currentChatId}?page=${page}`
-          );
+          const response = await fetch(`/api/messages/${chatId}?page=${page}`);
           const data = await response.json();
 
           const messageList = document.getElementById("messageList");
@@ -158,26 +86,25 @@
             const messageDiv = document.createElement("div");
             messageDiv.className = "p-4 bg-gray-50 rounded-lg";
             messageDiv.innerHTML = `
-                <div class="flex justify-between items-start">
-                    <div class="font-bold">${msg.from_user.name}</div>
-                    <div class="text-sm text-gray-500">${formatDate(
-                      msg.date
-                    )}</div>
-                </div>
-                <div class="mt-2">${msg.text}</div>
-            `;
+                        <div class="flex justify-between items-start">
+                            <div class="font-bold">${msg.from_user.name}</div>
+                            <div class="text-sm text-gray-500">${formatDate(
+                              msg.date
+                            )}</div>
+                        </div>
+                        <div class="mt-2">${msg.text}</div>
+                    `;
             messageList.appendChild(messageDiv);
           });
 
           // 更新分页信息
-          currentPage = page;
           document.getElementById("pageInfo").textContent = `第 ${page} 页`;
           document.getElementById("prevPage").disabled = page === 1;
           document.getElementById("nextPage").disabled =
             page * data.per_page >= data.total;
 
-          // 滚动到顶部
-          messageList.scrollTop = 0;
+          // 滚动到底部
+          messageList.scrollTop = messageList.scrollHeight;
         } catch (error) {
           console.error("加载消息失败:", error);
           alert("加载消息失败");
@@ -189,8 +116,6 @@
         .getElementById("messageForm")
         .addEventListener("submit", async (e) => {
           e.preventDefault();
-
-          if (!currentChatId) return;
 
           const messageText = document
             .getElementById("messageText")
@@ -204,7 +129,7 @@
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                chat_id: currentChatId,
+                chat_id: chatId,
                 text: messageText,
               }),
             });
@@ -226,16 +151,22 @@
       // 分页控制
       document.getElementById("prevPage").addEventListener("click", () => {
         if (currentPage > 1) {
-          loadMessages(currentPage - 1);
+          currentPage--;
+          loadMessages(currentPage);
         }
       });
 
       document.getElementById("nextPage").addEventListener("click", () => {
-        loadMessages(currentPage + 1);
+        currentPage++;
+        loadMessages(currentPage);
       });
 
-      // 初始加载群组列表
-      loadChats();
+      // 初始加载
+      if (chatId) {
+        loadMessages(1);
+      } else {
+        alert("未指定群组 ID");
+      }
     </script>
   </body>
 </html>
