@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>群组消息</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-2xl font-bold" id="chatTitle">群组消息</h1>
+          <a href="/" class="text-blue-500 hover:text-blue-700">返回群组列表</a>
+        </div>
+
+        <!-- 消息列表 -->
+        <div id="messageList" class="space-y-4 mb-6 h-[600px] overflow-y-auto">
+          <!-- 消息将通过 JavaScript 动态加载 -->
+        </div>
+
+        <!-- 分页控制 -->
+        <div class="flex justify-between items-center my-4">
+          <button
+            id="prevPage"
+            class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+          >
+            上一页
+          </button>
+          <span id="pageInfo">第 1 页</span>
+          <button
+            id="nextPage"
+            class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+          >
+            下一页
+          </button>
+        </div>
+
+        <!-- 发送消息表单 -->
+        <div class="mt-6 border-t pt-6">
+          <form id="messageForm" class="space-y-4">
+            <div>
+              <textarea
+                id="messageText"
+                class="w-full p-2 border rounded-lg"
+                rows="3"
+                placeholder="输入要发送的消息..."
+              ></textarea>
+            </div>
+            <button
+              type="submit"
+              class="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
+            >
+              发送消息
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // 获取当前群组 ID
+      const urlParams = new URLSearchParams(window.location.search);
+      const chatId = urlParams.get("chat_id");
+      let currentPage = 1;
+
+      // 格式化日期
+      function formatDate(isoString) {
+        const date = new Date(isoString);
+        return date.toLocaleString("zh-CN");
+      }
+
+      // 加载消息
+      async function loadMessages(page = 1) {
+        try {
+          const response = await fetch(`/api/messages/${chatId}?page=${page}`);
+          const data = await response.json();
+
+          const messageList = document.getElementById("messageList");
+          messageList.innerHTML = "";
+
+          data.messages.forEach((msg) => {
+            const messageDiv = document.createElement("div");
+            messageDiv.className = "p-4 bg-gray-50 rounded-lg";
+            messageDiv.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div class="font-bold">${msg.from_user.name}</div>
+                            <div class="text-sm text-gray-500">${formatDate(
+                              msg.date
+                            )}</div>
+                        </div>
+                        <div class="mt-2">${msg.text}</div>
+                    `;
+            messageList.appendChild(messageDiv);
+          });
+
+          // 更新分页信息
+          document.getElementById("pageInfo").textContent = `第 ${page} 页`;
+          document.getElementById("prevPage").disabled = page === 1;
+          document.getElementById("nextPage").disabled =
+            page * data.per_page >= data.total;
+
+          // 滚动到底部
+          messageList.scrollTop = messageList.scrollHeight;
+        } catch (error) {
+          console.error("加载消息失败:", error);
+          alert("加载消息失败");
+        }
+      }
+
+      // 发送消息
+      document
+        .getElementById("messageForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+
+          const messageText = document
+            .getElementById("messageText")
+            .value.trim();
+          if (!messageText) return;
+
+          try {
+            const response = await fetch("/api/send_message", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                chat_id: chatId,
+                text: messageText,
+              }),
+            });
+
+            const data = await response.json();
+            if (data.success) {
+              document.getElementById("messageText").value = "";
+              // 重新加载消息列表
+              loadMessages(currentPage);
+            } else {
+              alert("发送消息失败: " + data.error);
+            }
+          } catch (error) {
+            console.error("发送消息失败:", error);
+            alert("发送消息失败");
+          }
+        });
+
+      // 分页控制
+      document.getElementById("prevPage").addEventListener("click", () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadMessages(currentPage);
+        }
+      });
+
+      document.getElementById("nextPage").addEventListener("click", () => {
+        currentPage++;
+        loadMessages(currentPage);
+      });
+
+      // 初始加载
+      if (chatId) {
+        loadMessages(1);
+      } else {
+        alert("未指定群组 ID");
+      }
+    </script>
+  </body>
+</html>

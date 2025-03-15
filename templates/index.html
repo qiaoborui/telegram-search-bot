@@ -160,6 +160,26 @@
         color: var(--tg-theme-button-color);
       }
 
+      .chat-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .view-messages-btn {
+        padding: 4px 8px;
+        background-color: var(--tg-theme-button-color);
+        color: var(--tg-theme-button-text-color);
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 14px;
+      }
+
+      .view-messages-btn:hover {
+        opacity: 0.9;
+        color: var(--tg-theme-button-text-color);
+      }
+
       .switch {
         position: relative;
         display: inline-block;
@@ -927,8 +947,27 @@
             userCount.className = "user-count";
             userCount.textContent = user.count.toLocaleString();
 
+            const chatActions = document.createElement("div");
+            chatActions.className = "chat-actions";
+
+            const viewMessagesBtn = document.createElement("a");
+            viewMessagesBtn.href = `/messages?chat_id=${user.id}`;
+            viewMessagesBtn.className = "view-messages-btn";
+            viewMessagesBtn.textContent = "查看消息";
+
+            const switchInput = document.createElement("input");
+            switchInput.type = "checkbox";
+            switchInput.checked = user.enable;
+            switchInput.onchange = function () {
+              toggleStatus(user.id, this);
+            };
+
+            chatActions.appendChild(viewMessagesBtn);
+            chatActions.appendChild(switchInput);
+
             userItem.appendChild(userName);
             userItem.appendChild(userCount);
+            userItem.appendChild(chatActions);
             container.appendChild(userItem);
           });
         }
@@ -958,7 +997,7 @@
         };
 
         // 切换群组状态
-        async function toggleStatus(enable) {
+        async function toggleStatus(chatId, enable) {
           try {
             // 获取initData
             const initData = tg.initData;
@@ -966,7 +1005,7 @@
             // 从URL参数中获取群组ID
             const urlParams = new URLSearchParams(window.location.search);
             const startapp = urlParams.get("startapp");
-            const chatId = urlParams.get("chat_id") || window.currentChatId;
+            const chatId = chatId || window.currentChatId;
             console.log("URL startapp参数:", startapp);
             console.log("使用的chat_id参数:", chatId);
 
@@ -1050,7 +1089,7 @@
         document
           .getElementById("status-toggle")
           .addEventListener("change", function () {
-            toggleStatus(this.checked);
+            toggleStatus(null, this.checked);
           });
       });
     </script>
