@@ -1,0 +1,61 @@
+# Git
+.git
+.gitignore
+.github
+
+# 文档和示例
+README.md
+LICENSE
+docs/
+extra/
+preview/
+
+# 缓存和临时文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+ENV/
+env/
+
+# IDE相关
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 日志和数据文件
+*.log
+*.sqlite
+*.db
+*.db-journal
+
+# 本地配置
+config/*
+!config/.gitkeep
+
+# 测试
+tests/
+.pytest_cache/
+.coverage
+htmlcov/ 
