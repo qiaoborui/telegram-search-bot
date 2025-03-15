@@ -499,33 +499,24 @@ def debug_info():
 @app.route('/api/chats')
 def list_chats():
     """获取用户可访问的群组列表"""
-    # 获取并验证Telegram的initData
-    init_data = request.args.get('initData')
-    
-    logger.info(f"Received request to /api/chats with initData length: {len(init_data) if init_data else 0}")
-    
-    data = verify_telegram_data(init_data)
-    
-    if not data:
-        logger.warning("Authentication failed for /api/chats request")
-        return jsonify({'error': 'Invalid authentication data'}), 403
-    
-    # 解析用户数据
     try:
-        user_str = data.get('user', '{}')
-        # user_str是已经URL解码过的，但Telegram在initData中嵌套编码，所以可能需要额外解码
-        if user_str.startswith('%'):
-            user_str = urllib.parse.unquote(user_str)
-        user_data = json.loads(user_str)
-        logger.info(f"User data: {user_data}")
-        
         # 获取所有可访问的群组
         chats = get_user_chats()
-        
         return jsonify(chats)
     except Exception as e:
-        logger.error(f"Error processing request: {str(e)}")
-        return jsonify({'error': f'处理请求时出错: {str(e)}'}), 400
+        logger.error(f"Error getting chats: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/public/chats')
+def list_public_chats():
+    """获取公开可访问的群组列表（无需验证）"""
+    try:
+        # 获取所有可访问的群组
+        chats = get_user_chats()
+        return jsonify(chats)
+    except Exception as e:
+        logger.error(f"Error getting public chats: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/messages/<int:chat_id>')
 def get_messages(chat_id):
